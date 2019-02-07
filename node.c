@@ -67,6 +67,8 @@ node_t *node_new(enum node_type type, void *data, uint64_t n_children, ...)
     node_t *n = xcalloc(1, sizeof(*n));
     vnode_init(n, type, data, n_children, ap);
     va_end(ap);
+    debug("Created: ");
+    node_print(n, 0);
     return n;
 }
 

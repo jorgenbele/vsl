@@ -22,6 +22,7 @@
 "while"                { return WHILE;        }
 "do"                   { return DO;           }
 "var"                  { return VAR;          }
+"continue"             { return CONTINUE;     } /* NOT SPECIFIED IN LIST!! */
 [a-zA-Z_][0-9a-zA-Z_]* { return IDENTIFIER;   }
 .                      { return yytext[0];    }
 %%
