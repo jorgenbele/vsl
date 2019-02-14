@@ -9,5 +9,5 @@ int main(int argc, char *argv[])
 {
     yyparse();
     node_print(root, 0);
-    //tree_destroy(root);
+    tree_destroy(root);
 }

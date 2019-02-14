@@ -8,8 +8,8 @@
 
 %%
 [\t\n\r\v ]*           {} /* whitespace is ignored */
-\"([^\n\"]|\\\")*\"     { yylval = strdup(yytext); return STRING; } /* accepts \x where x is a double quote */
-[0-9]+                 { yylval = (char *) atoi(yytext); return NUMBER;       }
+\"([^\n\"]|\\\")*\"    { yylval = strdup(yytext); return STRING; } /* accepts \x where x is a double quote */
+[0-9]+                 { yylval = (void *) (uintptr_t) atoi(yytext); return NUMBER;       }
 \/\/.*                 {} /* comments are ignored */
 "def"                  { return FUNC;         }
 "begin"                { return OPENBLOCK;    }
@@ -23,6 +23,6 @@
 "do"                   { return DO;           }
 "var"                  { return VAR;          }
 "continue"             { return CONTINUE;     } /* NOT SPECIFIED IN LIST!! */
-[a-zA-Z_][0-9a-zA-Z_]* { yylval = strdup(yytext); return IDENTIFIER;   }
+[a-zA-Z_][0-9a-zA-Z_]* { yylval = strdup(yytext); return IDENTIFIER; }
 .                      { return yytext[0];    }
 %%

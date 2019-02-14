@@ -51,7 +51,9 @@ variable_list:
         |    variable_list ',' identifier       { $$ = node_new(VARIABLE_LIST, NULL, 2, $1, $3); }
         ;
 
-argument_list:  expression_list  { $$ = node_new(ARGUMENT_LIST,  NULL, 1, $1); } | %empty { $$ = node_new(PARAMETER_LIST, NULL, 0); };
+// NOTE: I create empty ARGUMENT_LIST and PARAMETER_LIST nodes to avoid NULL checks (and warnings),
+// this will result in the '*.tree' and '*.tree.correct' files to differ since PARAMETER_LIST is printed instead of (nil).
+argument_list:  expression_list  { $$ = node_new(ARGUMENT_LIST,  NULL, 1, $1); } | %empty { $$ = node_new(ARGUMENT_LIST, NULL, 0);  };
 parameter_list: variable_list    { $$ = node_new(PARAMETER_LIST, NULL, 1, $1); } | %empty { $$ = node_new(PARAMETER_LIST, NULL, 0); };
 
 declaration_list: declaration                   { $$ = node_new(DECLARATION_LIST, NULL, 1, $1);     }

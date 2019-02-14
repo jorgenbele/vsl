@@ -30,11 +30,18 @@ enum node_type {
     IDENTIFIER_DATA      = 23,
     NUMBER_DATA          = 24,
     STRING_DATA          = 25,
+
+    /* Used to get the number of different node types. */
     LAST_NO_TYPE         = 26
 };
 
-extern const char *node_t2s[LAST_NO_TYPE];        // node type to type string
-extern const bool node_tpr_data[LAST_NO_TYPE];    // node type has printable data, lookup table
-extern const bool node_malloc_data[LAST_NO_TYPE]; // node type has malloc'ed data, lookup table
+/* lookup table: node type to type string     */
+extern const char *node_t2s[LAST_NO_TYPE];
+
+/* lookup table: node type has printable data */
+extern const bool node_tpr_data[LAST_NO_TYPE];
+
+/* lookup table: node type has malloc'ed data */
+extern const bool node_malloc_data[LAST_NO_TYPE];
 
 #endif // __NODETYPES_H_
