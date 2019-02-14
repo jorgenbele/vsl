@@ -8,8 +8,8 @@
 
 %%
 [\t\n\r\v ]*           {} /* whitespace is ignored */
-\;[^\n\;]*\;           { return STRING;       }
-[0-9]+                 { return NUMBER;       }
+\;[^\n\;]*\;           { yylval = strdup(yytext); return STRING;       }
+[0-9]+                 { yylval = (char *) atoi(yytext); return NUMBER;       }
 \/\/.*                 {} /* comments are ignored */
 "def"                  { return FUNC;         }
 "begin"                { return OPENBLOCK;    }
@@ -23,6 +23,6 @@
 "do"                   { return DO;           }
 "var"                  { return VAR;          }
 "continue"             { return CONTINUE;     } /* NOT SPECIFIED IN LIST!! */
-[a-zA-Z_][0-9a-zA-Z_]* { return IDENTIFIER;   }
+[a-zA-Z_][0-9a-zA-Z_]* { yylval = strdup(yytext); return IDENTIFIER;   }
 .                      { return yytext[0];    }
 %%

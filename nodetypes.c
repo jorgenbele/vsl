@@ -53,8 +53,37 @@ const bool node_tpr_data[26] = {
     0,    // IF_STATEMENT
     0,    // WHILE_STATEMENT
     true, // EXPRESSION
+    true, // RELATION
+    true, // DECLARATION
+    0,    // PRINT_ITEM
+    true, // IDENTIFIER_DATA
+    0,    // NUMBER_DATA
+    true, // STRING_DATA
+};
+
+const bool node_malloc_data[26] = {
+    0,    // PROGRAM
+    0,    // GLOBAL_LIST
+    0,    // GLOBAL
+    0,    // STATEMENT_LIST
+    0,    // PRINT_LIST
+    0,    // EXPRESSION_LIST
+    0,    // VARIABLE_LIST
+    0,    // ARGUMENT_LIST
+    0,    // PARAMETER_LIST
+    0,    // DECLARATION_LIST
+    0,    // FUNCTION
+    0,    // STATEMENT
+    0,    // BLOCK
+    0,    // ASSIGNMENT_STATEMENT
+    0,    // RETURN_STATEMENT
+    0,    // PRINT_STATEMENT
+    0,    // NULL_STATEMENT
+    0,    // IF_STATEMENT
+    0,    // WHILE_STATEMENT
+    false, // EXPRESSION
     0,    // RELATION
-    0,    // DECLARATION
+    true,    // DECLARATION
     0,    // PRINT_ITEM
     true, // IDENTIFIER_DATA
     0,    // NUMBER_DATA

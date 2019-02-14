@@ -24,6 +24,5 @@ void node_finalize(node_t *discard);
 //void node_destroy_subtree(node_t *discard);
 //void simplify_tree(node_t **simplified, node_t *root);
 
-#define NODE_TO_TYPE_STRING(node) node_t2s[(node)->type]
-
+#define NODE_TO_TYPE_STRING(node) (((node)->type < LAST_NO_TYPE) ? ((node_t2s[(node)->type])) : "INVALID_TYPE")
 #endif // __NODE_H_

@@ -5,7 +5,7 @@
 
 node_t *root;
 
-int main(int argc, char **argv)
+int main(int argc, char *argv[])
 {
     yyparse();
     node_print(root, 0);

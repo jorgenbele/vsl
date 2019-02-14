@@ -7,6 +7,7 @@ void tree_destroy(node_t *n)
 {
     for (uint64_t i = 0; i < n->n_children; i++) {
         tree_destroy(n->children[i]);
+        n->children[i] = NULL;
     }
     node_finalize(n);
 }
