@@ -60,7 +60,7 @@ void node_print(node_t *root, int nesting)
              * The following two lines are equal:
              *  printf(", data: (%ld)", (int64_t)root->data);
              */
-            printf("(%ld)", (int64_t)root->data_int64_t);
+            printf("(%lld)", (int64_t)root->data_int64_t);
         }
 
         /* Make a new line, and traverse the node's children in the same manner */

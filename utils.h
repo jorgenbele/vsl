@@ -8,7 +8,7 @@
     do {                                                \
         fprintf(stderr,                                 \
                 "%s:%d - %s is not implemented, %s\n",  \
-                __FILE__, __LINE__, (name), (message)); \
+                __FILE__, __LINE__, #name, (message)); \
     } while (0)
 
 void *xmalloc(size_t size);
