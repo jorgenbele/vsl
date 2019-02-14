@@ -7,6 +7,11 @@
 %left '*' '/'
 %nonassoc UMINUS
 %right '~'
+
+// Dangling ELSE:
+// https://www.gnu.org/software/bison/manual/html_node/Non-Operators.html#Non-Operators
+%right THEN ELSE
+
 	//%expect 1
 	//
 %token FUNC PRINT RETURN CONTINUE IF THEN ELSE WHILE DO OPENBLOCK CLOSEBLOCK
@@ -14,8 +19,12 @@
 
 %%
 
-program           : global_list { root = node_new(PROGRAM, NULL, 0); }  ;
-global_list       : global          | global_list global                ;
+start: program
+program           : global_list             { $$ = root = node_new(PROGRAM, NULL, 1, $1); }  ;
+global_list       : global                  { $$ = node_new(GLOBAL, NULL,  0);}
+                  | global_list global      { $$ = node_new(GLOBAL_LIST, NULL, 0);         }
+;
+
 global            : function        | declaration                       ;
 statement_list    : statement       | statement_list statement          ;
 print_list        : print_item      | print_list      ',' print_item    ;

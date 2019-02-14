@@ -1,8 +1,8 @@
 
 LEX=flex
 YACC=bison
-YFLAGS+=--defines=y.tab.h -o y.tab.c
-CFLAGS+=-std=c99 -g -Isrc -Iinclude -D_POSIX_C_SOURCE=200809L -DYYSTYPE="node_t *"
+YFLAGS+=--defines=y.tab.h -o y.tab.c -r all
+CFLAGS+=-std=c99 -g -Isrc -Iinclude -D_POSIX_C_SOURCE=200809L -DYYSTYPE="node_t *" -DDEBUG
 LDLIBS+=-lc
 
 main: main.c parser.o scanner.o nodetypes.o node.o utils.o tree.o

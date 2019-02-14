@@ -1,6 +1,8 @@
 #ifndef __NODETYPES_H_
 #define __NODETYPES_H_
 
+#include <stdbool.h>
+
 enum node_type {
     PROGRAM,
     GLOBAL_LIST,
@@ -30,6 +32,7 @@ enum node_type {
     STRING_DATA
 };
 
-extern const char *node_t2s[26];
+extern const char *node_t2s[26];     // node type to type string
+extern const bool node_tpr_data[26]; // node type has printable data, lookup table
 
 #endif // __NODETYPES_H_
