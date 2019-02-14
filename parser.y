@@ -99,7 +99,7 @@ expression:
         |       expression '-' expression   { $$ = node_new(EXPRESSION,     "-",  2, $1, $3); }
         |       expression '*' expression   { $$ = node_new(EXPRESSION,     "*",  2, $1, $3); }
         |       expression '/' expression   { $$ = node_new(EXPRESSION,     "/",  2, $1, $3); }
-        |       '-' expression              { $$ = node_new(EXPRESSION,     "-",  1, $2    ); }
+        |       '-' expression %prec UMINUS { $$ = node_new(EXPRESSION,     "-",  1, $2    ); }
         |       '~' expression              { $$ = node_new(EXPRESSION,     "~",  1, $2    ); }
         |       '(' expression ')'          { $$ = $2; }
         |       number                      { $$ = node_new(EXPRESSION,    NULL,  1, $1    ); }
