@@ -118,7 +118,7 @@ void node_init(node_t *n, enum node_type type, void *data, uint64_t n_children, 
 /* node_new(): Allocate and initialize a new node. */
 node_t *node_new(enum node_type type, void *data, uint64_t n_children, ...)
 {
-    debug("CREATING NEW NODE: type: %s, data: %s\n", node_t2s[type], node_tpr_data[type] ? (char *) data : "");
+    //debug("CREATING NEW NODE: type: %s, data: %s\n", node_t2s[type], node_tpr_data[type] ? (char *) data : "");
     va_list ap;
     va_start(ap, n_children);
     node_t *n = xcalloc(1, sizeof(*n));
