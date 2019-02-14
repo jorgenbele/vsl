@@ -54,7 +54,7 @@ const bool node_tpr_data[26] = {
     0,    // WHILE_STATEMENT
     true, // EXPRESSION
     true, // RELATION
-    true, // DECLARATION
+    0,    // DECLARATION
     0,    // PRINT_ITEM
     true, // IDENTIFIER_DATA
     0,    // NUMBER_DATA
@@ -83,7 +83,7 @@ const bool node_malloc_data[26] = {
     0,    // WHILE_STATEMENT
     false, // EXPRESSION
     0,    // RELATION
-    true,    // DECLARATION
+    0,    // DECLARATION
     0,    // PRINT_ITEM
     true, // IDENTIFIER_DATA
     0,    // NUMBER_DATA

@@ -101,14 +101,14 @@ expression:
         |       expression '/' expression   { $$ = node_new(EXPRESSION,     "/",  2, $1, $3); }
         |       '-' expression              { $$ = node_new(EXPRESSION,     "-",  1, $2    ); }
         |       '~' expression              { $$ = node_new(EXPRESSION,     "~",  1, $2    ); }
-        |       '(' expression ')'          { $$ = node_new(EXPRESSION, "parens", 1, $2    ); }
+        |       '(' expression ')'          { $$ = $2; }
         |       number                      { $$ = node_new(EXPRESSION,    NULL,  1, $1    ); }
         |       identifier                  { $$ = node_new(EXPRESSION,    NULL,  1, $1    ); }
         |       identifier '(' argument_list ')' { $$ = node_new(EXPRESSION,  NULL,  2, $1, $3); }
                 ;
 
 declaration:
-         VAR variable_list { $$ = node_new(DECLARATION, $1, 1, $2); }
+         VAR variable_list { $$ = node_new(DECLARATION, NULL, 1, $2); }
                 ;
 
 print_item:     expression  { $$ = node_new(PRINT_ITEM, NULL, 1, $1); }

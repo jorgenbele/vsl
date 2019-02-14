@@ -8,7 +8,7 @@
 
 %%
 [\t\n\r\v ]*           {} /* whitespace is ignored */
-\;[^\n\;]*\;           { yylval = strdup(yytext); return STRING;       }
+\"([^\n\"]|\\\")*\"     { yylval = strdup(yytext); return STRING; } /* accepts \x where x is a double quote */
 [0-9]+                 { yylval = (char *) atoi(yytext); return NUMBER;       }
 \/\/.*                 {} /* comments are ignored */
 "def"                  { return FUNC;         }

@@ -7,7 +7,7 @@
 #define NODE_HAS_PRINTABLE_DATA(node) (((node)->type < LAST_NO_TYPE) ? ((node_tpr_data[(node)->type])) : 0)
 #define NODE_MALLOC_DATA(node) (((node)->type < LAST_NO_TYPE) ? ((node_malloc_data[(node)->type])) : 0)
 
-#define STR_OR_NULL(str) (str ? str : "NULL")
+#define STR_OR_NULL(str) (str ? str : "(null)")
 
 #if DEBUG
 /* node_print(): Recursively print the tree from 'root'. */
