@@ -1,66 +1,43 @@
 #include <stdio.h>
 #include <stdarg.h>
+#include <inttypes.h>
 
 #include "node.h"
 #include "utils.h"
 
-#if DEBUG
 /* node_print(): Recursively print the tree from 'root'. */
 void node_print(node_t *root, int nesting)
 {
     if (root != NULL) {
         /* Print the type of node indented by the nesting level */
+    #if DEBUG
         printf("%*ctype: %s, n_children: %d", nesting, ' ', NODE_TO_TYPE_STRING(root), root->n_children);
-
-        /* For identifiers, strings, expressions and numbers,
-         * print the data element also
-         */
-        if (NODE_HAS_PRINTABLE_DATA(root)) {
-            printf(", data: (%s)", STR_OR_NULL((char *) root->data_char_ptr));
-        } else if (root->type == NUMBER_DATA) {
-            /*
-             * NOTE: No need to store a pointer to int64_t in root->data, when
-             *       on 64-bits systems (which this compiler is made for) have
-             *       pointers with size of 8 bytes. To make it even better I added
-             *       a union covering void *data  and int64_t data_int64_t.
-             * The following two lines are equal:
-             *  printf(", data: (%ld)", (int64_t)root->data);
-             */
-            printf(", data: (%ld)", (int64_t)root->data_int64_t);
-        }
-
-        /* Make a new line, and traverse the node's children in the same manner */
-        putchar('\n');
-        for (uint64_t i = 0; i < root->n_children; i++) {
-            node_print(root->children[i], nesting+1);
-        }
-    } else {
-        printf("%*c%p\n", nesting, ' ', root);
-    }
-}
-#else
-/* node_print(): Recursively print the tree from 'root'. */
-void node_print(node_t *root, int nesting)
-{
-    if (root != NULL) {
-        /* Print the type of node indented by the nesting level */
+    #else
         printf("%*c%s", nesting, ' ', NODE_TO_TYPE_STRING(root));
+    #endif
 
         /* For identifiers, strings, expressions and numbers,
          * print the data element also
          */
         if (NODE_HAS_PRINTABLE_DATA(root)) {
+        #if DEBUG
+            printf(", data: (%s)", STR_OR_NULL((char *) root->data_char_ptr));
+        #else
             printf("(%s)", STR_OR_NULL((root->data_char_ptr)));
+        #endif
         } else if (root->type == NUMBER_DATA) {
             /*
-             * NOTE: No need to store a pointer to int64_t in root->data, when
+             * NOTE: No need to store a pointer to int64_t (int_type) in root->data, when
              *       on 64-bits systems (which this compiler is made for) have
-             *       pointers with size of 8 bytes. To make it even better I added
-             *       a union covering void *data  and int64_t data_int64_t.
-             * The following two lines are equal:
-             *  printf(", data: (%ld)", (int64_t)root->data);
+             *       pointers with size of 8 bytes. Uses the PRIdit macro (in nodetypes.h)
+             *       to specify the correct printf specifier for int64_t.
              */
-            printf("(%lld)", (int64_t)root->data_int64_t);
+        #if DEBUG
+            printf(", data: (%" PRIdit ")", root->data_integer);
+        #else
+            printf("(%" PRIdit ")",  root->data_integer);
+        #endif
+
         }
 
         /* Make a new line, and traverse the node's children in the same manner */
@@ -72,28 +49,26 @@ void node_print(node_t *root, int nesting)
         printf("%*c%p\n", nesting, ' ', root);
     }
 }
-#endif
 
-/* vnode_init(): va_list version of node_init(). */
-static void vnode_init(node_t *n, enum node_type type, void *data, uint64_t n_children, va_list ap)
-{
-    n->type = type;
-    n->data = data;
-    n->n_children = n_children;
+#define VA_LIST_NODE_INIT(n, type, data, n_children, ap)            \
+    do {                                                            \
+        n->type = type;                                             \
+        n->data = data;                                             \
+        n->n_children = n_children;                                 \
+                                                                    \
+        n->children = xcalloc(n_children, sizeof(*n->children));    \
+                                                                    \
+        for (uint64_t i = 0; i < n_children; i++) {                 \
+            n->children[i] = va_arg(ap, node_t *);                  \
+        }                                                           \
+    } while (0)
 
-    n->children = xcalloc(n_children, sizeof(*n->children));
-
-    for (uint64_t i = 0; i < n_children; i++) {
-        n->children[i] = va_arg(ap, node_t *);
-    }
-}
-
-/* node_init(): Assigns the given values to the given node. */
+/* node_init(): Assigns the given values to the given node (allocates children array). */
 void node_init(node_t *n, enum node_type type, void *data, uint64_t n_children, ...)
 {
     va_list ap;
     va_start(ap, n_children);
-    vnode_init(n, type, data, n_children, ap);
+    VA_LIST_NODE_INIT(n, type, data, n_children, ap);
     va_end(ap);
 }
 
@@ -104,10 +79,12 @@ node_t *node_new(enum node_type type, void *data, uint64_t n_children, ...)
     va_list ap;
     va_start(ap, n_children);
     node_t *n = xcalloc(1, sizeof(*n));
-    vnode_init(n, type, data, n_children, ap);
+    VA_LIST_NODE_INIT(n, type, data, n_children, ap);
     va_end(ap);
     return n;
 }
+
+#undef VA_LIST_NODE_INIT
 
 /* Remove a node and its contents */
 /* node_finalize():  */

@@ -8,15 +8,32 @@
 %nonassoc UMINUS
 %right '~'
 
-
 // Dangling ELSE:
 // https://www.gnu.org/software/bison/manual/html_node/Non-Operators.html#Non-Operators
 %right THEN ELSE
 
+%union {
+    node_t *node;
+    char *str;            /* Will always be a malloc'ed string. */
+    enum node_type type;
+    int_type integer;
+};
+
 //%expect 1
-//
-%token FUNC PRINT RETURN CONTINUE IF THEN ELSE WHILE DO OPENBLOCK CLOSEBLOCK
-%token VAR NUMBER IDENTIFIER STRING
+
+/* Terminals types */
+%token  <type>     FUNC PRINT RETURN CONTINUE IF THEN ELSE WHILE DO OPENBLOCK CLOSEBLOCK VAR
+%token  <str>      IDENTIFIER STRING
+%token  <integer>  NUMBER
+
+/* Non-terminals types */
+%type   <node> program global_list global function declaration_list declaration statement_list statement
+%type   <node> print_list print_item
+%type   <node> expression_list expression
+%type   <node> variable_list argument_list parameter_list
+%type   <node> assignment_statement return_statement print_statement if_statement while_statement null_statement
+%type   <node> block relation
+%type   <node> identifier number string
 
 %%
 
@@ -52,8 +69,9 @@ variable_list:
         |    variable_list ',' identifier       { $$ = node_new(VARIABLE_LIST, NULL, 2, $1, $3); }
         ;
 
-// NOTE: I create empty ARGUMENT_LIST and PARAMETER_LIST nodes to avoid NULL checks (and warnings),
-// this will result in the '*.tree' and '*.tree.correct' files to differ since PARAMETER_LIST is printed instead of (nil).
+/* NOTE: I create empty ARGUMENT_LIST and PARAMETER_LIST nodes to avoid NULL
+ * checks (and warnings), this will result in the '*.tree' and '*.tree.correct'
+ * files to differ since PARAMETER_LIST is printed instead of (nil). */
 argument_list:  expression_list  { $$ = node_new(ARGUMENT_LIST,  NULL, 1, $1); } | %empty { $$ = node_new(ARGUMENT_LIST, NULL, 0);  };
 parameter_list: variable_list    { $$ = node_new(PARAMETER_LIST, NULL, 1, $1); } | %empty { $$ = node_new(PARAMETER_LIST, NULL, 0); };
 
@@ -90,6 +108,9 @@ if_statement:
 
 while_statement: WHILE relation DO statement  { $$ = node_new(WHILE_STATEMENT, NULL, 2, $2, $4); } ;
 
+/* NOTE: A table mapping the node_t types to whether it was
+ *       allocated or not can be found in nodetypes.c. This
+ *       is why I pass (const char *) like "=" as data. */
 relation:
              expression '=' expression { $$ = node_new(RELATION, "=", 2, $1, $3); }
         |    expression '<' expression { $$ = node_new(RELATION, "<", 2, $1, $3); }
@@ -120,9 +141,9 @@ print_item:
         |    string      { $$ = node_new(PRINT_ITEM, NULL, 1, $1); }
         ;
 
-identifier:  IDENTIFIER  { $$ = node_new(IDENTIFIER_DATA, $1, 0); } ;
-number:      NUMBER      { $$ = node_new(NUMBER_DATA, $1, 0);     } ;
-string:      STRING      { $$ = node_new(STRING_DATA, $1, 0);     } ;
+identifier:  IDENTIFIER  { $$ = node_new(IDENTIFIER_DATA, NODE_DATA_CAST $<str>1, 0);     } ;
+number:      NUMBER      { $$ = node_new(NUMBER_DATA,     NODE_DATA_CAST $<integer>1, 0); } ;
+string:      STRING      { $$ = node_new(STRING_DATA,     NODE_DATA_CAST $<str>1, 0);     } ;
 
 %%
 

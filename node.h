@@ -13,7 +13,7 @@ typedef struct node {
        dangerous casting. */
     union {
         void *data;
-        int64_t data_int64_t;
+        int_type data_integer;
         char *data_char_ptr;
     };
     void *entry;

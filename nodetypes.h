@@ -2,6 +2,7 @@
 #define __NODETYPES_H_
 
 #include <stdbool.h>
+#include <stdint.h>
 
 enum node_type {
     PROGRAM              =  0,
@@ -34,6 +35,26 @@ enum node_type {
     /* Used to get the number of different node types. */
     LAST_NO_TYPE         = 26
 };
+
+/* typedef for the integer type to use in the compiler */
+typedef int64_t int_type;
+
+/*
+ * Platform independent print format specifier.
+ * Used since long is 64 bits on some systems, while
+ * long is 32 bits and long long is 64 bits on some other
+ * systems.
+ */
+/* for printf */
+#define PRIdit PRId64
+
+/* for scanf  */
+#define SCNdit SCNd64
+
+/* Macro used to cast from any pointer/pointer-sized data
+ * type to (void *) without losing the ability to cast
+ * back to the original type. */
+#define NODE_DATA_CAST (void *)(uintptr_t)
 
 /* lookup table: node type to type string     */
 extern const char *node_t2s[LAST_NO_TYPE];

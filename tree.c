@@ -15,5 +15,6 @@ void tree_destroy(node_t *n)
 // NOTE: Changed order of parameters
 void tree_simplify(node_t *root, node_t **simplified_out)
 {
+    (void) root; (void) simplified_out;
     NOT_IMPLEMENTED(tree_simplify, "upcoming assignment");
 }
