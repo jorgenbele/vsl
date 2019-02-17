@@ -1,0 +1,89 @@
+% Created 2019-02-17 Sun 23:55
+% Intended LaTeX compiler: pdflatex
+\documentclass[11pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{graphicx}
+\usepackage{grffile}
+\usepackage{longtable}
+\usepackage{wrapfig}
+\usepackage{rotating}
+\usepackage[normalem]{ulem}
+\usepackage{amsmath}
+\usepackage{textcomp}
+\usepackage{amssymb}
+\usepackage{capt-of}
+\usepackage{hyperref}
+\author{Jørgen Bele Reinfjell}
+\date{\today}
+\title{TDT4205 Compiler Construction (2019)\\\medskip
+\large Assignment 2}
+\hypersetup{
+ pdfauthor={Jørgen Bele Reinfjell},
+ pdftitle={TDT4205 Compiler Construction (2019)},
+ pdfkeywords={},
+ pdfsubject={},
+ pdfcreator={Emacs 26.1 (Org mode 9.2)}, 
+ pdflang={English}}
+\begin{document}
+
+\maketitle
+
+\section{LL(1) Parsing table construction}
+\label{sec:org3396e20}
+\subsection{Starting grammar}
+\label{sec:org6fb288c}
+\begin{verbatim}
+/* Specified in bison notation */
+S: c L E;
+L: L E | l E;
+E: E s | U;
+U: b | c | n | %empty;
+\end{verbatim}
+
+\subsection{Modified grammar, without left recursion}
+\label{sec:org23492de}
+\begin{verbatim}
+/* Specified in bison notation */
+S:  c L E;
+L:  l E L1; /* alpha=E, beta=lE */
+L1: E L1 | %empty;
+E:  U E1;   /* alpha=s, beta=U */
+E1: S E1 | %empty;
+U:  b | c | n | %empty;
+\end{verbatim}
+
+\subsection{Table of First(\(\alpha\)), Follow(\(\alpha\)) and Nullable(\(\alpha\))}
+\label{sec:org6fe8868}
+\begin{center}
+\begin{tabular}{llll}
+ & First & Follow & Nullable\\
+\hline
+S & c & \$ & No\\
+L & l & \{b, c, n, s\} & No\\
+L1 & \{b, c, n, s\} & \$ & Yes\\
+E & \{b, c, n, s\} & \{b, c, n, s\} & Yes\\
+E1 & s & \$ & Yes\\
+U & \{b, c, n\} & \$ & Yes\\
+\end{tabular}
+\end{center}
+
+
+\emph{The grammar is ambiguous, as is seen in the table above,
+because \(First(E) = Follow(E)\).}
+
+\subsection{Parsing table of the ambiguous LL(1) grammar}
+\label{sec:org758a84c}
+\begin{center}
+\begin{tabular}{llllll}
+ & c & l & b & n & s\\
+\hline
+S & S \(\rightarrow\) cLE &  &  &  & \\
+L &  & L \(\rightarrow\) lEL' &  &  & \\
+L' & L' \(\rightarrow\) EL' &  & L' \(\rightarrow\) EL' & L' \(\rightarrow\) EL' & L \(\rightarrow\) EL'\\
+E & E \(\rightarrow\) UE' / E \(\rightarrow\) \(\epsilon\) &  & E \(\rightarrow\) UE' / E \(\rightarrow\) \(\epsilon\) & E \(\rightarrow\) UE' / E \(\rightarrow\) \(\epsilon\) & E \(\rightarrow\) UE'\\
+E' &  &  &  &  & E' \(\rightarrow\) sE'\\
+U & U \(\rightarrow\) c &  & U \(\rightarrow\) b & U \(\rightarrow\) n & \\
+\end{tabular}
+\end{center}
+\end{document}

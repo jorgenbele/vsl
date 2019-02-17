@@ -1,0 +1,49 @@
+#+TITLE: TDT4205 Compiler Construction (2019)
+#+SUBTITLE: Assignment 2
+#+AUTHOR: Jørgen Bele Reinfjell
+#+OPTIONS: toc:nil
+
+* LL(1) Parsing table construction
+** Starting grammar
+#+BEGIN_SRC bison
+/* Specified in bison notation */
+S: c L E;
+L: L E | l E;
+E: E s | U;
+U: b | c | n | %empty;
+#+END_SRC
+
+** Modified grammar, without left recursion
+#+BEGIN_SRC bison
+/* Specified in bison notation */
+S:  c L E;
+L:  l E L1; /* alpha=E, beta=lE */
+L1: E L1 | %empty;
+E:  U E1;   /* alpha=s, beta=U */
+E1: S E1 | %empty;
+U:  b | c | n | %empty;
+#+END_SRC
+
+** Table of First(\alpha), Follow(\alpha) and Nullable(\alpha)
+|    | First        | Follow       | Nullable |
+|----+--------------+--------------+----------|
+| S  | c            | $            | No       |
+| L  | l            | {b, c, n, s} | No       |
+| L1 | {b, c, n, s} | $            | Yes      |
+| E  | {b, c, n, s} | {b, c, n, s} | Yes      |
+| E1 | s            | $            | Yes      |
+| U  | {b, c, n}    | $            | Yes      |
+
+
+/The grammar is ambiguous, as is seen in the table above,
+because $First(E) = Follow(E)$./
+
+** Parsing table of the ambiguous LL(1) grammar
+|    | c                        | l         | b                        | n           | s         |
+|----+--------------------------+-----------+--------------------------+-------------+-----------|
+| S  | S \rightarrow cLE                 |           |                          |             |           |
+| L  |                          | L \rightarrow lEL' |                          |             |           |
+| L' | L' \rightarrow EL'                |           | L' \rightarrow EL'                | L' \rightarrow EL'   | L \rightarrow EL'  |
+| E  | E \rightarrow UE' / E \rightarrow \epsilon |           | E \rightarrow UE' / E \rightarrow \epsilon | E \rightarrow UE' / E \rightarrow \epsilon | E \rightarrow UE'  |
+| E' |                          |           |                          |             | E' \rightarrow sE' |
+| U  | U \rightarrow c                   |           | U \rightarrow b                   | U \rightarrow n      |           |
