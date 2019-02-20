@@ -12,6 +12,7 @@ typedef struct node {
     /* Changed to use union instad of potentially
        dangerous casting. */
     union {
+        uintmax_t data_max;
         void *data;
         int_type data_integer;
         char *data_char_ptr;
@@ -23,6 +24,7 @@ typedef struct node {
 
 void node_init(node_t *n, enum node_type type, void *data, uint64_t n_childs, ...);
 node_t *node_new(enum node_type type, void *data, uint64_t n_childs, ...);
+void node_dup_data(node_t *dest, const node_t *src);
 void node_print(node_t *root, int nesting);
 void node_finalize(node_t *discard);
 

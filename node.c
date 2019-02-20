@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <inttypes.h>
+#include <string.h>
 
 #include "node.h"
 #include "utils.h"
@@ -83,8 +84,26 @@ node_t *node_new(enum node_type type, void *data, uint64_t n_children, ...)
     va_end(ap);
     return n;
 }
-
 #undef VA_LIST_NODE_INIT
+
+/* Does not set the type. */
+void node_dup_data(node_t *dest, const node_t *src)
+{
+    if (!NODE_MALLOC_DATA(src)) {
+        dest->data_max = src->data_max;
+        return;
+    }
+
+    if (NODE_HAS_PRINTABLE_DATA(src)) {
+        /* String */
+        dest->data_char_ptr = strdup(src->data_char_ptr);
+        return;
+    } else {
+        debug("Incompatible arguments to node_dup_data!");
+        exit(1);
+    }
+
+}
 
 /* Remove a node and its contents */
 /* node_finalize():  */

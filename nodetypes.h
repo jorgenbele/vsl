@@ -65,4 +65,32 @@ extern const bool node_tpr_data[LAST_NO_TYPE];
 /* lookup table: node type has malloc'ed data */
 extern const bool node_malloc_data[LAST_NO_TYPE];
 
+extern const bool node_is_list[LAST_NO_TYPE];
+
+/* lookup table: which node type a given node type can merge
+ * its children with in tree_simplify().
+ *
+ * Example:
+*      node_list_parent[PRINT_ITEM] = PRINT_LIST
+ *   means that the following transision is allowed:
+ *
+ *    PRINT_LIST                 PRINT_LIST
+ *       PRINT_ITEM         =>      "Hello, World"
+ *         "Hello, World"
+ *
+ *     node_list_parent[PRINT_LIST] = PRINT_LIST
+ *   means that the following transition is allowed:
+ *
+ *    PRINT_LIST                 PRINT_LIST
+ *      PRINT_LIST                 "Hello, "
+ *        PRINT_LIST               "this is"
+ *          PRINT_ITEM             "Mike"
+ *            "Mike"      =>
+ *        PRINT_ITEM
+ *          "this is"
+ *      PRINT_ITEM
+ *        "Hello, "
+ */
+extern const enum node_type node_list_parent[LAST_NO_TYPE];
+
 #endif // __NODETYPES_H_

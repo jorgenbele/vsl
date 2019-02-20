@@ -32,7 +32,7 @@ const char *node_t2s[26] = {
     AS_STR(STRING_DATA)
 };
 
-const bool node_tpr_data[26] = {
+const bool node_tpr_data[LAST_NO_TYPE] = {
     0,    // PROGRAM
     0,    // GLOBAL_LIST
     0,    // GLOBAL
@@ -61,7 +61,7 @@ const bool node_tpr_data[26] = {
     true, // STRING_DATA
 };
 
-const bool node_malloc_data[26] = {
+const bool node_malloc_data[LAST_NO_TYPE] = {
     0,    // PROGRAM
     0,    // GLOBAL_LIST
     0,    // GLOBAL
@@ -89,5 +89,64 @@ const bool node_malloc_data[26] = {
     0,    // NUMBER_DATA
     true, // STRING_DATA
 };
+
+const bool node_is_list[LAST_NO_TYPE] = {
+    0,    // PROGRAM
+    true, // GLOBAL_LIST
+    0,    // GLOBAL
+    true, // STATEMENT_LIST
+    true, // PRINT_LIST
+    true, // EXPRESSION_LIST
+    true, // VARIABLE_LIST
+    true, // ARGUMENT_LIST
+    true, // PARAMETER_LIST
+    true, // DECLARATION_LIST
+    0,    // FUNCTION
+    0,    // STATEMENT
+    0,    // BLOCK
+    0,    // ASSIGNMENT_STATEMENT
+    0,    // RETURN_STATEMENT
+    0,    // PRINT_STATEMENT
+    0,    // NULL_STATEMENT
+    0,    // IF_STATEMENT
+    0,    // WHILE_STATEMENT
+    0,    // EXPRESSION
+    0,    // RELATION
+    0,    // DECLARATION
+    0,    // PRINT_ITEM
+    0,    // IDENTIFIER_DATA
+    0,    // NUMBER_DATA
+    0,    // STRING_DATA
+};
+
+const enum node_type node_list_parent[LAST_NO_TYPE] = {
+    LAST_NO_TYPE,    // PROGRAM
+    LAST_NO_TYPE,    // GLOBAL_LIST
+    GLOBAL_LIST,     // GLOBAL
+    STATEMENT_LIST,  // STATEMENT_LIST
+    PRINT_LIST,      // PRINT_LIST
+    LAST_NO_TYPE,    // EXPRESSION_LIST
+    LAST_NO_TYPE,    // VARIABLE_LIST
+    LAST_NO_TYPE,    // ARGUMENT_LIST
+    LAST_NO_TYPE,    // PARAMETER_LIST
+    LAST_NO_TYPE,    // DECLARATION_LIST
+    LAST_NO_TYPE,    // FUNCTION
+    STATEMENT_LIST,  // STATEMENT
+    LAST_NO_TYPE,    // BLOCK
+    STATEMENT_LIST,  // ASSIGNMENT_STATEMENT
+    STATEMENT_LIST,  // RETURN_STATEMENT
+    STATEMENT_LIST,  // PRINT_STATEMENT
+    STATEMENT_LIST,  // NULL_STATEMENT
+    STATEMENT_LIST,  // IF_STATEMENT
+    STATEMENT_LIST,  // WHILE_STATEMENT
+    EXPRESSION_LIST, // EXPRESSION
+    LAST_NO_TYPE,    // RELATION
+    LAST_NO_TYPE,    // DECLARATION
+    PRINT_LIST,      // PRINT_ITEM
+    LAST_NO_TYPE,    // IDENTIFIER_DATA
+    LAST_NO_TYPE,    // NUMBER_DATA
+    LAST_NO_TYPE,    // STRING_DATA
+};
+
 
 #undef AS_STR
