@@ -19,6 +19,9 @@ int main(int argc, char *argv[])
     debug("\n\n==== SIMPLIFIED ====");
     node_print(root, 0);
 
+    debug("\n\n==== SOURCE ====");
+    node_print_source(root);
+
     tree_destroy(root);
     yylex_destroy();
 }

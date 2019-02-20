@@ -6,6 +6,29 @@
 #include "node.h"
 #include "utils.h"
 
+/* NOTE: root has to be simplified! */
+void node_print_source(node_t *root)
+{
+    if (!root) return;
+    /* Print the type of node indented by the nesting level */
+    switch (root->type) {
+        case FUNCTION: {
+            printf("def %s(", root->children[0]->data_char_ptr); break;
+            for (size_t i = 0; i < root->children[1]->children[0]->n_children; i++) printf("%s", root->children[1]->children[0]->children[i]->data_char_ptr);
+            printf(")\n");
+
+
+        }
+
+    }
+
+    /* Make a new line, and traverse the node's children in the same manner */
+    for (uint64_t i = 0; i < root->n_children; i++) {
+        node_print_source(root->children[i]);
+    }
+}
+
+
 /* node_print(): Recursively print the tree from 'root'. */
 void node_print(node_t *root, int nesting)
 {
@@ -84,6 +107,21 @@ node_t *node_new(enum node_type type, void *data, uint64_t n_children, ...)
     va_end(ap);
     return n;
 }
+
+/* node_new(): Allocate and initialize a new node. WITH LINE AND COLUMN NUMBERS! */
+node_t *node_new_lc(enum node_type type, void *data, int line, int col, uint64_t n_children, ...)
+{
+    //debug("CREATING NEW NODE: type: %s, data: %s\n", node_t2s[type], node_tpr_data[type] ? (char *) data : "");
+    va_list ap;
+    va_start(ap, n_children);
+    node_t *n = xcalloc(1, sizeof(*n));
+    VA_LIST_NODE_INIT(n, type, data, n_children, ap);
+    va_end(ap);
+    n->line = line;
+    n->col = col;
+    return n;
+}
+
 #undef VA_LIST_NODE_INIT
 
 /* Does not set the type. */

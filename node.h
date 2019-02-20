@@ -9,6 +9,8 @@
 typedef struct node {
     enum node_type type;
 
+    int line, col;
+
     /* Changed to use union instad of potentially
        dangerous casting. */
     union {
@@ -24,8 +26,10 @@ typedef struct node {
 
 void node_init(node_t *n, enum node_type type, void *data, uint64_t n_childs, ...);
 node_t *node_new(enum node_type type, void *data, uint64_t n_childs, ...);
+node_t *node_new_lc(enum node_type type, void *data, int line, int col, uint64_t n_children, ...);
 void node_dup_data(node_t *dest, const node_t *src);
 void node_print(node_t *root, int nesting);
+void node_print_source(node_t *root);
 void node_finalize(node_t *discard);
 
 /*
@@ -42,7 +46,7 @@ void node_finalize(node_t *discard);
 
 /* Converts a node to the string representation of its type. */
 #define NODE_TO_TYPE_STRING(node)                                       \
-    (((node)->type < LAST_NO_TYPE) ? ((node_t2s[(node)->type])) : "INVALID_TYPE")
+    (((node)->type < LAST_NO_TYPE) ? ((node_type_to_string[(node)->type])) : "INVALID_TYPE")
 
 /* Evaluates to true if the node has printable data. */
 #define NODE_HAS_PRINTABLE_DATA(node)                                   \

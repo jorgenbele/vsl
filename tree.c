@@ -1,8 +1,7 @@
 #include "tree.h"
 #include "utils.h"
 
-//const node_t vec_default_node_t = {0};
-//DEF_VEC_FUNCS(node_t, node_t, vec_default_node_t);
+
 
 // NOTE: Changed from "destroy subtree" to "tree_destroy",
 //       as a subtree is always tree itself.
@@ -35,16 +34,6 @@ void tree_destroy(node_t *n)
  *    ELEM
  *
  */
-
-
-/*
-  Algorithm:
-
-  flatten(up, cur):
-     if up is list and cur is list:
-        add children of cur to children of up
- */
-
 
 typedef node_t *node_t_ptr;
 DEF_VEC(node_t_ptr, node_t_ptr, NULL);
@@ -171,7 +160,13 @@ static void flatten(node_t *root, vec_node_t_ptr *abandoned)
 
     for (size_t i = 0; i < root->n_children; i++) {
         node_t_ptr child = root->children[i];
-        if (node_list_parent[root->children[i]->type] == root->type) {
+        debug("root_type: %s, left: %lu, right: %lu, res: %lu\n",
+              NODE_TO_TYPE_STRING(root),
+              node_list_parents[root->children[i]->type],
+              NODE_TYPE_TO_FLAG(root->type),
+              node_list_parents[root->children[i]->type] & NODE_TYPE_TO_FLAG(root->type));
+
+        if (node_list_parents[root->children[i]->type] & NODE_TYPE_TO_FLAG(root->type)) {
             /* Root and current child are compatible. Merge children of
              * the current child with the root list. */
             for (size_t j = 0; j < child->n_children; j++) {
