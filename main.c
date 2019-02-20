@@ -13,7 +13,8 @@ int main(int argc, char *argv[])
     debug("==== NON-SIMPLIFIED ====");
     node_print(root, 0);
 
-    tree_simplify(root, NULL);
+    //tree_simplify(root, NULL);
+    tree_simplify(root);
 
     debug("\n\n==== SIMPLIFIED ====");
     node_print(root, 0);

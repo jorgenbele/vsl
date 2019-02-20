@@ -131,7 +131,9 @@ expression:
 
         |    number                           { $$ = node_new(EXPRESSION,  NULL,  1, $1);     }
         |    identifier                       { $$ = node_new(EXPRESSION,  NULL,  1, $1);     }
-        |    identifier '(' argument_list ')' { $$ = node_new(EXPRESSION,  NULL,  2, $1, $3); }
+
+            /* NOTE: "func_call" instead of NULL */
+        |    identifier '(' argument_list ')' { $$ = node_new(EXPRESSION,  "func_call",  2, $1, $3); }
         ;
 
 declaration: VAR variable_list { $$ = node_new(DECLARATION, NULL, 1, $2); } ;
