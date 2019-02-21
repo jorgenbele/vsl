@@ -60,4 +60,4 @@ void node_finalize(node_t *discard);
 /* Explicit conversion to "(null)" if str is NULL */
 #define STR_OR_NULL(str) ((str) ? (str) : "(null)")
 
-#endif // __NODE_H_
+#endif /* __NODE_H_ */

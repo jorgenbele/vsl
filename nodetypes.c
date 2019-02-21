@@ -149,32 +149,32 @@ const enum node_flag node_type_to_flag[LAST_NO_TYPE] = {
 };
 
 const uint32_t node_list_parents[LAST_NO_TYPE] = {
-    0x00,                                    // PROGRAM
-    FLAG_GLOBAL_LIST,                        // GLOBAL_LIST
-    FLAG_GLOBAL_LIST,                        // GLOBAL
-    FLAG_BLOCK|FLAG_STATEMENT_LIST,          // STATEMENT_LIST
-    FLAG_PRINT_STATEMENT|FLAG_PRINT_LIST,    // PRINT_LIST
-    FLAG_ARGUMENT_LIST|FLAG_EXPRESSION_LIST, // EXPRESSION_LIST
-    FLAG_VARIABLE_LIST|FLAG_PARAMETER_LIST,  // VARIABLE_LIST
-    0x00,                                    // ARGUMENT_LIST
-    0x00,                                    // PARAMETER_LIST
-    0x00,                                    // DECLARATION_LIST
-    0x00,                                    // FUNCTION
-    FLAG_STATEMENT_LIST,                     // STATEMENT
-    0x00,                                    // BLOCK
-    FLAG_STATEMENT_LIST,                     // ASSIGNMENT_STATEMENT
-    FLAG_STATEMENT_LIST,                     // RETURN_STATEMENT
-    FLAG_STATEMENT_LIST,                     // PRINT_STATEMENT
-    FLAG_STATEMENT_LIST,                     // NULL_STATEMENT
-    FLAG_STATEMENT_LIST,                     // IF_STATEMENT
-    FLAG_STATEMENT_LIST,                     // WHILE_STATEMENT
-    FLAG_EXPRESSION_LIST,                    // EXPRESSION
-    0x00,                                    // RELATION
-    0x00,                                    // DECLARATION
-    FLAG_PRINT_LIST,                         // PRINT_ITEM
-    0x00,                                    // IDENTIFIER_DATA
-    0x00,                                    // NUMBER_DATA
-    0x00,                                    // STRING_DATA
+    0x00,                                          // PROGRAM
+    FLAG_PROGRAM           | FLAG_GLOBAL_LIST,     // GLOBAL_LIST
+    FLAG_GLOBAL_LIST,                              // GLOBAL
+    FLAG_BLOCK             | FLAG_STATEMENT_LIST,  // STATEMENT_LIST
+    FLAG_PRINT_STATEMENT   | FLAG_PRINT_LIST,      // PRINT_LIST
+    FLAG_ARGUMENT_LIST     | FLAG_EXPRESSION_LIST, // EXPRESSION_LIST
+    FLAG_VARIABLE_LIST     | FLAG_PARAMETER_LIST,  // VARIABLE_LIST
+    0x00,                                          // ARGUMENT_LIST
+    0x00,                                          // PARAMETER_LIST
+    DECLARATION_LIST,                              // DECLARATION_LIST
+    0x00,                                          // FUNCTION
+    FLAG_STATEMENT_LIST,                           // STATEMENT
+    0x00,                                          // BLOCK
+    FLAG_STATEMENT_LIST,                           // ASSIGNMENT_STATEMENT
+    FLAG_STATEMENT_LIST,                           // RETURN_STATEMENT
+    FLAG_STATEMENT_LIST,                           // PRINT_STATEMENT
+    FLAG_STATEMENT_LIST,                           // NULL_STATEMENT
+    FLAG_STATEMENT_LIST,                           // IF_STATEMENT
+    FLAG_STATEMENT_LIST,                           // WHILE_STATEMENT
+    0x00,                                          // EXPRESSION
+    0x00,                                          // RELATION
+    FLAG_DECLARATION_LIST,                         // DECLARATION
+    FLAG_PRINT_LIST,                               // PRINT_ITEM
+    0x00,                                          // IDENTIFIER_DATA
+    0x00,                                          // NUMBER_DATA
+    0x00,                                          // STRING_DATA
 };
 
 

@@ -1,10 +1,8 @@
 #include "tree.h"
 #include "utils.h"
 
-
-
-// NOTE: Changed from "destroy subtree" to "tree_destroy",
-//       as a subtree is always tree itself.
+/* NOTE: Changed from "destroy subtree" to "tree_destroy",
+ *       as a subtree is always tree itself. */
 void tree_destroy(node_t *n)
 {
     for (uint64_t i = 0; i < n->n_children; i++) {
@@ -160,11 +158,11 @@ static void flatten(node_t *root, vec_node_t_ptr *abandoned)
 
     for (size_t i = 0; i < root->n_children; i++) {
         node_t_ptr child = root->children[i];
-        debug("root_type: %s, left: %lu, right: %lu, res: %lu\n",
-              NODE_TO_TYPE_STRING(root),
-              node_list_parents[root->children[i]->type],
-              NODE_TYPE_TO_FLAG(root->type),
-              node_list_parents[root->children[i]->type] & NODE_TYPE_TO_FLAG(root->type));
+        //debug("root_type: %s, left: %lu, right: %lu, res: %lu\n",
+        //      NODE_TO_TYPE_STRING(root),
+        //      node_list_parents[root->children[i]->type],
+        //      NODE_TYPE_TO_FLAG(root->type),
+        //      node_list_parents[root->children[i]->type] & NODE_TYPE_TO_FLAG(root->type));
 
         if (node_list_parents[root->children[i]->type] & NODE_TYPE_TO_FLAG(root->type)) {
             /* Root and current child are compatible. Merge children of
@@ -188,7 +186,7 @@ static void flatten(node_t *root, vec_node_t_ptr *abandoned)
     /* NOTE: Does not destroy the vector data! */
 }
 
-// NOTE: Changed order of parameters
+/* NOTE: Changed order of parameters */
 void tree_simplify(node_t *root)
 {
     /* Store the nodes no longer needed in a vector for later use. */

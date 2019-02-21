@@ -143,6 +143,7 @@ expression:
         |    '-' expression %prec UMINUS      { $$ = C1(EXPRESSION, "-", $2);     }
         |    '~' expression                   { $$ = C1(EXPRESSION, "~", $2);     }
         |    '(' expression ')'               { $$ = $2; }
+        //|    '(' expression ')'               { $$ = C1(EXPRESSION, "(expr)", $2); }
 
         |    number                           { $$ = C1(EXPRESSION, NULL, $1);     }
         |    identifier                       { $$ = C1(EXPRESSION, NULL, $1);     }

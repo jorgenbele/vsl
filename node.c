@@ -9,21 +9,153 @@
 /* NOTE: root has to be simplified! */
 void node_print_source(node_t *root)
 {
+    int offset = 0;
     if (!root) return;
+
     /* Print the type of node indented by the nesting level */
     switch (root->type) {
         case FUNCTION: {
-            printf("def %s(", root->children[0]->data_char_ptr); break;
-            for (size_t i = 0; i < root->children[1]->children[0]->n_children; i++) printf("%s", root->children[1]->children[0]->children[i]->data_char_ptr);
-            printf(")\n");
-
-
+            printf("def %s", root->children[0]->data_char_ptr);
+            node_print_source(root->children[1]);
+            printf("\n");
+            offset += 2;
+            break;
         }
 
+        case PARAMETER_LIST: {
+            putchar('(');
+            for (size_t i = 0; i < root->n_children; i++) printf("%s%s", root->children[i]->data_char_ptr, (i + 1 < root->n_children) ? ", " : "");
+            printf(")");
+            offset = root->n_children;
+            break;
+        }
+
+        case ARGUMENT_LIST: {
+            printf("(");
+            for (size_t i = 0; i < root->n_children; i++) {
+                node_print_source(root->children[i]);
+                printf("%s", (i + 1 < root->n_children) ? ", " : "");
+            }
+            printf(")");
+            offset = root->n_children;
+            break;
+        }
+
+        case DECLARATION: {
+            printf("var ");
+            for (size_t i = 0; i < root->children[0]->n_children; i++) {
+                node_print_source(root->children[0]->children[i]);
+                printf("%s", (i + 1 < root->children[0]->n_children) ? ", " : "");
+            }
+            printf("\n");
+            offset++;
+            break;
+        }
+
+        case STRING_DATA:
+        case IDENTIFIER_DATA: {
+            printf("%s", root->data_char_ptr);
+            break;
+        }
+
+        case IF_STATEMENT: {
+            printf("if ");
+            node_print_source(root->children[0]);
+            printf("then\n");
+            node_print_source(root->children[1]);
+            printf("\n");
+            offset += 2;
+
+            if (root->n_children == 3) {
+                printf("else\n");
+                node_print_source(root->children[2]);
+                offset++;
+            }
+            break;
+        }
+
+
+        case RELATION: {
+            node_print_source(root->children[0]);
+            printf("%s", root->data_char_ptr);
+            node_print_source(root->children[1]);
+            offset += 2;
+            break;
+        }
+
+        case ASSIGNMENT_STATEMENT: {
+            printf("%s := ", root->children[0]->data_char_ptr);
+            //for (size_t i = 1; i < root->n_children; i++) node_print_source(root->children[i]);
+            node_print_source(root->children[1]);
+            printf("\n");
+            offset += 2;
+            break;
+        }
+
+        case EXPRESSION: {
+
+            if (root->n_children == 1) {
+                switch (*root->data_char_ptr) {
+                    case '-': case '~': {
+                        printf("(");
+                        putchar(*root->data_char_ptr); ;
+                        node_print_source(root->children[0]);
+                        printf(")");
+                        offset += root->n_children;
+                        break;
+                    }
+                }
+            } else if (root->n_children == 2) {
+                switch (*root->data_char_ptr) {
+                    case '+': case '-': case '*': case '/': {
+                        printf("(");
+                        node_print_source(root->children[0]);
+                        putchar(*root->data_char_ptr);;
+                        node_print_source(root->children[1]);
+                        printf(")");
+                        offset += root->n_children;
+                    }
+                }
+            } else {
+                printf("EXPRESSION ERROR!");
+                exit(3);
+            }
+
+            break;
+        }
+
+        case NUMBER_DATA: {printf("%" PRIdit " ", root->data_integer); break;}
+
+        case PRINT_STATEMENT: {
+            printf("print ");
+            for (size_t i = 0; i < root->n_children; i++) {
+                node_print_source(root->children[i]);
+                printf("%s", (i + 1 < root->n_children) ? ", " : "");
+            }
+            printf("\n");
+            offset += root->n_children;
+            break;
+        }
+
+        case RETURN_STATEMENT: {
+            printf("return ");
+            for (size_t i = 0; i < root->n_children; i++) node_print_source(root->children[i]);
+            printf("\n");
+            offset += root->n_children;
+            break;
+        }
+
+        case BLOCK: {
+            printf("begin\n");
+            for (size_t i = 0; i < root->n_children; i++) node_print_source(root->children[i]);
+            printf("end\n");
+            offset += root->n_children;
+            break;
+        }
     }
 
-    /* Make a new line, and traverse the node's children in the same manner */
-    for (uint64_t i = 0; i < root->n_children; i++) {
+    ///* Make a new line, and traverse the node's children in the same manner */
+    for (uint64_t i = offset; i < root->n_children; i++) {
         node_print_source(root->children[i]);
     }
 }
