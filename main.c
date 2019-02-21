@@ -2,6 +2,7 @@
 #include <stdlib.h>
 
 #include "vslc.h"
+#include "node_source.h"
 
 node_t *root;
 

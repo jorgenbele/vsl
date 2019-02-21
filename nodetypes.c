@@ -155,10 +155,11 @@ const uint32_t node_list_parents[LAST_NO_TYPE] = {
     FLAG_BLOCK             | FLAG_STATEMENT_LIST,  // STATEMENT_LIST
     FLAG_PRINT_STATEMENT   | FLAG_PRINT_LIST,      // PRINT_LIST
     FLAG_ARGUMENT_LIST     | FLAG_EXPRESSION_LIST, // EXPRESSION_LIST
+    //FLAG_DECLARATION_LIST  | FLAG_VARIABLE_LIST     | FLAG_PARAMETER_LIST,  // VARIABLE_LIST
     FLAG_VARIABLE_LIST     | FLAG_PARAMETER_LIST,  // VARIABLE_LIST
     0x00,                                          // ARGUMENT_LIST
     0x00,                                          // PARAMETER_LIST
-    DECLARATION_LIST,                              // DECLARATION_LIST
+    FLAG_DECLARATION_LIST,                              // DECLARATION_LIST
     0x00,                                          // FUNCTION
     FLAG_STATEMENT_LIST,                           // STATEMENT
     0x00,                                          // BLOCK

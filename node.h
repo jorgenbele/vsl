@@ -29,7 +29,6 @@ node_t *node_new(enum node_type type, void *data, uint64_t n_childs, ...);
 node_t *node_new_lc(enum node_type type, void *data, int line, int col, uint64_t n_children, ...);
 void node_dup_data(node_t *dest, const node_t *src);
 void node_print(node_t *root, int nesting);
-void node_print_source(node_t *root);
 void node_finalize(node_t *discard);
 
 /*
