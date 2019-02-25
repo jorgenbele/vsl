@@ -6,6 +6,9 @@
 #include "node.h"
 #include "utils.h"
 
+/* Vector types. */
+DEF_VEC_FUNCS(node_t_ptr, node_t_ptr, NULL);
+
 /* node_print(): Recursively print the tree from 'root'. */
 void node_print(node_t *root, int nesting)
 {

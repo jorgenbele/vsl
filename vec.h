@@ -16,6 +16,9 @@
 
 enum {ERR_VEC_EMPTY=1,ERR_VEC_TOO_SHORT,ERR_VEC_INIT};
 
+#define VEC_DEFAULT(type) \
+    __vec_default_##type
+
 #define DEF_VEC_STRUCT(name, type)              \
     struct vec_##name                           \
     {                                           \
@@ -228,6 +231,12 @@ enum {ERR_VEC_EMPTY=1,ERR_VEC_TOO_SHORT,ERR_VEC_INIT};
     #define VEC_POP(vec, type) \
         vec_pop_##type((vec))
 
+    #define VEC_GET(vec, type, i) \
+        vec_get_##type((vec), (i))
+
+    #define VEC_GET_PTR(vec, type, i) \
+        vec_get_ptr_##type((vec), (i))
+
     #define VEC_LEN(vec) ((vec)->len)
 
     #define VEC_ARRAY_PTR(vec) ((vec)->data)
@@ -253,6 +262,12 @@ enum {ERR_VEC_EMPTY=1,ERR_VEC_TOO_SHORT,ERR_VEC_INIT};
 
     #define VEC_POP(vec, type) \
         vec_pop_##type((vec)), assert(!(vec)->error)
+
+    #define VEC_GET(vec, type, i) \
+        vec_get_##type((vec), (i))
+
+    #define VEC_GET_PTR(vec, type, i) \
+        vec_get_ptr_##type((vec), (i))
 
     #define VEC_LEN(vec) ((vec)->len)
 

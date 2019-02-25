@@ -5,6 +5,7 @@
 #include <stdint.h>
 
 #include "nodetypes.h"
+#include "vec.h"
 
 typedef struct node {
     enum node_type type;
@@ -26,6 +27,11 @@ typedef struct node {
     uint64_t n_children;
     struct node **children;
 } node_t;
+
+/* Vector types. */
+typedef node_t *node_t_ptr;
+DEF_VEC_HEADER(node_t_ptr, node_t_ptr);
+
 
 void node_init(node_t *n, enum node_type type, void *data, uint64_t n_childs, ...);
 node_t *node_new(enum node_type type, void *data, uint64_t n_childs, ...);

@@ -4,8 +4,6 @@
 #include "node.h"
 #include "vec.h"
 
-DEF_VEC_HEADER(vec_node_t, node_t);
-
 #define destroy_subtree(discard) tree_destroy((discard))
 #define simplify_tree(simplified_out, root) tree_simplify((root), (simplified_out))
 

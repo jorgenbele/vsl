@@ -26,9 +26,9 @@ int main(int argc, char *argv[])
     src_print_fileno = 2;
     node_print_source(root);
 
-    //debug("\n\n==== PYTHON SOURCE ====\n\n");
-    //python_src_print_fileno = 2;
-    //transpile_to_python(root);
+    debug("\n\n==== PYTHON SOURCE ====\n\n");
+    python_src_print_fileno = 2;
+    transpile_to_python(root);
 
     tree_destroy(root);
     yylex_destroy();

@@ -12,9 +12,6 @@ void tree_destroy(node_t *n)
     node_finalize(n);
 }
 
-typedef node_t *node_t_ptr;
-DEF_VEC(node_t_ptr, node_t_ptr, NULL);
-
 #define EVAL_CONST_EXPR1(op, left)                                      \
     node_new(NUMBER_DATA, ((void *) (uintptr_t) (int64_t) (op (left))), 0)
 
