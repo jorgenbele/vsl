@@ -4,6 +4,12 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+/* There are two rule sets; one which I will use in the rest of the compiler project,
+ * and is currently used in the source recreation (node_src.c, node_python.c), and
+ * one which matches the tree.correct files (which were released AFTER i created mine).
+ */
+#define USE_TREE_CORRECT_RULES
+
 /*
  * Enumeration of node types.
  */
@@ -35,21 +41,23 @@ enum node_type {
     NUMBER_DATA          = 24,
     STRING_DATA          = 25,
 
+    /* Python like doc-strings that are attached to function
+     * nodes (node.comment).
+     * Does not change the ast, so it can be ignored. */
     FUNCTION_COMMENT     = 26,
 
     /* Used to get the number of different node types. */
     LAST_NO_TYPE         = 27
 };
 
-#define NODE_TYPE_IS_STATEMENT(type)                                \
-    (((type) == ASSIGNMENT_STATEMENT) || ((type) == STATEMENT)       \
-    || ((type) == RETURN_STATEMENT || ((type) == PRINT_STATEMENT)   \
-        || ((type) == NULL_STATEMENT) || ((type) == IF_STATEMENT)   \
-        || ((type) == WHILE_STATEMENT)))
+#define NODE_TYPE_IS_STATEMENT(type)                                    \
+    ((FLAG_ASSIGNMENT_STATEMENT | FLAG_STATEMENT                        \
+      | FLAG_RETURN_STATEMENT | FLAG_PRINT_STATEMENT | FLAG_NULL_STATEMENT \
+      | FLAG_IF_STATEMENT | FLAG_WHILE_STATEMENT) & NODE_TYPE_TO_FLAG((type)))
 
-#define NODE_TYPE_IS_EXPRESSION(type)                       \
-    (((type) == EXPRESSION) || ((type) == IDENTIFIER_DATA)  \
-     || ((type) == NUMBER_DATA || ((type) == STRING_DATA)))
+#define NODE_TYPE_IS_EXPRESSION(type)                                   \
+    ((FLAG_EXPRESSION | FLAG_IDENTIFIER_DATA | FLAG_NUMBER_DATA | FLAG_STRING_DATA) \
+     & NODE_TYPE_TO_FLAG((type)))
 
 #define NODE_TYPE_TO_FLAG(type) ((uint32_t) (1<<((type)+1)))
 
@@ -120,12 +128,16 @@ extern const bool node_tpr_data[LAST_NO_TYPE];
 /* lookup table: node type has malloc'ed data */
 extern const bool node_malloc_data[LAST_NO_TYPE];
 
+/* lookup table: is then node type a list type or not */
 extern const bool node_is_list[LAST_NO_TYPE];
 
 /* lookup table: which node types a given node type can merge
  * its children with in tree_simplify(). The table consists
  * of a set of flags for each node type, specifying whether
- * it can be transformed into that node, or not.
+ * it can be merged into that node, or not.
+ *
+ * Also, the FLAG_KEEP_CHILDREN_TYPE flag specifies whether the
+ * root (with a single children node) can be replaced by its child.
  *
  * Example:
  *     node_list_parents[PRINT_ITEM] & PRINT_LIST != 0

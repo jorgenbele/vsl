@@ -154,6 +154,64 @@ const enum node_flag node_type_to_flag[N_NODE_FLAGS] = {
     FLAG_KEEP_CHILDREN_TYPE,      // FLAG: Keep the children type
 };
 
+#ifdef USE_TREE_CORRECT_RULES
+/* These rules generates matching tree files. */
+
+const uint32_t node_list_parents[LAST_NO_TYPE] = {
+    0x00,                                          // PROGRAM
+    FLAG_PROGRAM           | FLAG_GLOBAL_LIST,     // GLOBAL_LIST
+    FLAG_GLOBAL_LIST,                              // GLOBAL
+    //FLAG_BLOCK             | FLAG_STATEMENT_LIST,  // STATEMENT_LIST
+    FLAG_STATEMENT_LIST,  // STATEMENT_LIST
+    FLAG_PRINT_STATEMENT   | FLAG_PRINT_LIST,      // PRINT_LIST
+
+    /* This rule merges an EXPRESSION_LIST with an ARGUMENT_LIST whenever
+     * the EXPRESSION_LIST is a direct descendant of an ARGUMENT_LIST node. */
+    //FLAG_ARGUMENT_LIST     | FLAG_EXPRESSION_LIST, // EXPRESSION_LIST
+    FLAG_KEEP_CHILDREN_TYPE | FLAG_ARGUMENT_LIST | FLAG_EXPRESSION_LIST,  // EXPRESSION_LIST (matches tree.correct files)
+
+    /*
+     * Merge VARIABLE_LIST with DECLARATION, DECLARATION_LIST, and VARIABLE_LIST,
+     * but when there is a single node ((root) DECLARATION -> (child) VARIABLE_LIST),
+     * then replace the DECLARATION node with the VARIABLE_LIST node.
+     */
+    //FLAG_KEEP_CHILDREN_TYPE | FLAG_DECLARATION | FLAG_DECLARATION_LIST  | FLAG_VARIABLE_LIST     | FLAG_PARAMETER_LIST,  // VARIABLE_LIST
+    /* If this is not wanted, then replace the above with the following, and
+     * see the comment later in this list. */
+    FLAG_KEEP_CHILDREN_TYPE | FLAG_DECLARATION_LIST  | FLAG_VARIABLE_LIST     | FLAG_PARAMETER_LIST,  // VARIABLE_LIST (matches tree.correct files)
+
+    0x00,                                          // ARGUMENT_LIST
+    0x00,                                          // PARAMETER_LIST
+    FLAG_DECLARATION_LIST,                         // DECLARATION_LIST
+    0x00,                                          // FUNCTION
+    FLAG_STATEMENT_LIST,                           // STATEMENT
+    0x00,                                          // BLOCK
+    FLAG_STATEMENT_LIST,                           // ASSIGNMENT_STATEMENT
+    FLAG_STATEMENT_LIST,                           // RETURN_STATEMENT
+    FLAG_STATEMENT_LIST,                           // PRINT_STATEMENT
+    FLAG_STATEMENT_LIST,                           // NULL_STATEMENT
+    FLAG_STATEMENT_LIST,                           // IF_STATEMENT
+    FLAG_STATEMENT_LIST,                           // WHILE_STATEMENT
+    0x00,                                          // EXPRESSION
+    0x00,                                          // RELATION
+
+    /* Merge DECLARATION with DECLARATION_LIST whenever possible. This will,
+     * when used together with the above VARIABLE_LIST rule, ALWAYS result
+     * in declarations being represented by a SINGLE VARIABLE_LIST.
+     *
+     * Since declarations are represented by a specific child (one of 2 children)
+     * of a block, we know when a VARIABLE_LIST is a declaration by context.
+     */
+    //FLAG_DECLARATION_LIST,                         // DECLARATION
+    0x00,                                          // DECLARATION (matches tree.correct files)
+    FLAG_PRINT_LIST,                               // PRINT_ITEM
+    0x00,                                          // IDENTIFIER_DATA
+    0x00,                                          // NUMBER_DATA
+    0x00,                                          // STRING_DATA
+    0x00,                                          // FUNCTION_COMMENT
+};
+
+#else
 const uint32_t node_list_parents[LAST_NO_TYPE] = {
     0x00,                                          // PROGRAM
     FLAG_PROGRAM           | FLAG_GLOBAL_LIST,     // GLOBAL_LIST
@@ -207,5 +265,6 @@ const uint32_t node_list_parents[LAST_NO_TYPE] = {
     0x00,                                          // STRING_DATA
     0x00,                                          // FUNCTION_COMMENT
 };
+#endif
 
 #undef AS_STR
