@@ -1,7 +1,7 @@
 #ifndef __VSLC_H_
 #define __VSLC_H_
 
-#define DEBUG_VEC
+/* #define DEBUG_VEC */
 
 #include "nodetypes.h"
 #include "node.h"

@@ -16,4 +16,7 @@
  */
 void node_print_source(node_t *root);
 
+/* Can be set to override the default: 1. */
+extern int src_print_fileno;
+
 #endif /* __NODE_SRC_H_ */

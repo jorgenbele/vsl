@@ -104,7 +104,7 @@ function: function_comment function {
              }
             | FUNC identifier  '(' parameter_list ')' statement  { $$ = C3(FUNCTION, NULL, $2, $4, $6); };
 
-function_comment: FUNCTION_COMMENT_PARSER { $$ = C0(FUNCTION_COMMENT, strdup($1)); } ;
+function_comment: FUNCTION_COMMENT_PARSER { $$ = C0(FUNCTION_COMMENT, $1); } ;
 
 statement:
              assignment_statement    { $$ = C1(STATEMENT, NULL, $1); }

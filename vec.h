@@ -177,7 +177,7 @@ enum {ERR_VEC_EMPTY=1,ERR_VEC_TOO_SHORT,ERR_VEC_INIT};
     int vec_set_##name(struct vec_##name *v, type t, size_t i);     \
     type vec_get_##name(struct vec_##name *v, size_t i);            \
     type *vec_get_ptr_##name(struct vec_##name *v, size_t i);       \
-    struct vec_##name vec_after_##name(struct vec_##name *v, size_t i);
+    struct vec_##name vec_after_##name(struct vec_##name *v, size_t i)
 
 
 #define DEF_VEC_HEADER(name, type)              \
@@ -199,7 +199,7 @@ enum {ERR_VEC_EMPTY=1,ERR_VEC_TOO_SHORT,ERR_VEC_INIT};
         DEF_VEC_AFTER(name, type, def)
 
 #define DEF_VEC(name, type, def)                \
-    DEF_VEC_HEADER(name, type)                  \
+    DEF_VEC_HEADER(name, type);                 \
         DEF_VEC_FUNCS(name, type, def)
 
 /*

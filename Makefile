@@ -2,8 +2,11 @@
 LEX=flex
 YACC=bison
 YFLAGS+=--defines=y.tab.h -o y.tab.c -r all
-CFLAGS+=-std=c99 -g -D_POSIX_C_SOURCE=200809L -Wall -Wextra # -DYYSTYPE="void *" # -Wno-incompatible-pointer-types -Wno-int-to-pointer-cast # -DDEBUG
+CFLAGS+=-std=c11 -g -D_POSIX_C_SOURCE=200809L -Wall -Wextra -Wpedantic # -DYYSTYPE="void *" # -Wno-incompatible-pointer-types -Wno-int-to-pointer-cast # -DDEBUG
+CFLAGS+=-Wno-extra-semi -Wno-unneeded-internal-declaration
+CFLAGS+=-Wno-unused-command-line-argument
 LDLIBS+=-lc
+#CC=musl-clang
 CC=clang
 
 .PHONEY: main clean purge rebuild

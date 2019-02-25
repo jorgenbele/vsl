@@ -46,7 +46,7 @@ void node_print(node_t *root, int nesting)
             node_print(root->children[i], nesting+1);
         }
     } else {
-        printf("%*c%p\n", nesting, ' ', root);
+        printf("%*c%p\n", nesting, ' ', (void *) root);
     }
 }
 
@@ -117,6 +117,12 @@ void node_dup_data(node_t *dest, const node_t *src)
         debug("Incompatible arguments to node_dup_data!");
         exit(1);
     }
+
+    if (src->comment) {
+        /* The node has a comment attached. Duplicate it. */
+        if (!dest->comment) dest->comment = xcalloc(1, sizeof(*dest->comment));
+        node_dup_data(dest->comment, src->comment);
+    }
 }
 
 /* Remove a node and its contents */
@@ -124,6 +130,7 @@ void node_dup_data(node_t *dest, const node_t *src)
 void node_finalize(node_t *n)
 {
     free(n->children);
+    if (n->comment) node_finalize(n->comment);
     if (NODE_MALLOC_DATA(n)) free(n->data);
     free(n);
 }

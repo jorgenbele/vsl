@@ -4,6 +4,10 @@
 
 #define BLOCK_INDENT 4
 
+/* List of globals. */
+int src_print_fileno = 1;
+
+/* List of static variables. */
 static int cur_col = 0;
 static int cur_line = 0;
 static size_t slen = 0;
@@ -14,7 +18,7 @@ static int expression_depth = 0;
 
 #define NEWLINE do { need_sep = false; emit_str("\n"); cur_line++; cur_col = 0; } while(0)
 
-/* function prototypes */
+/* Function prototypes. */
 static void emit_expression(const node_t *n);
 static void emit_statement(const node_t *n);
 static void emit_block(const node_t *n);
@@ -36,10 +40,9 @@ static const char *node_data_str(const node_t *n, size_t *len)
     return "(UNKNOWN DATA)";
 }
 
-static void align_col(int *cur_col, int col) { while (*cur_col < col) { (*cur_col)++; putchar(' '); } }
-//static void align_line(int *cur_line, int line) { while (*cur_line < line) { (*cur_line)++; putchar('\n'); } }
+static void align_col(int *cur_col, int col) { while (*cur_col < col) { (*cur_col)++; dprintf(src_print_fileno, " "); } }
 
-static void emit_str(const char *s) { if (!cur_col) { align_col(&cur_col, block_depth * BLOCK_INDENT); } else if (need_sep) { putchar(' '); cur_col++; need_sep = false; } printf("%s", s); cur_col += strlen(s); }
+static void emit_str(const char *s) { if (!cur_col) { align_col(&cur_col, block_depth * BLOCK_INDENT); } else if (need_sep) { dprintf(src_print_fileno, " "); cur_col++; need_sep = false; } dprintf(src_print_fileno, "%s", s); cur_col += strlen(s); }
 static void emit_number(const node_t *n) { emit_str(node_data_str(n, &slen)); need_sep = true; }
 static void emit_ident(const node_t *n) { emit_str(node_data_str(n, &slen)); }
 
@@ -210,7 +213,6 @@ static void emit_statement_list(const node_t *n)
         need_sep = true;
     }
 }
-
 
 static void emit_block(const node_t *n)
 {
