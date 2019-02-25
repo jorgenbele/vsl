@@ -40,6 +40,12 @@ void node_print(node_t *root, int nesting)
         #endif
         }
 
+        #if DEBUG
+        if (root->comment) {
+            printf("[%s]", root->comment->data_char_ptr);
+        }
+        #endif
+
         /* Make a new line, and traverse the node's children in the same manner */
         putchar('\n');
         for (uint64_t i = 0; i < root->n_children; i++) {
@@ -120,7 +126,7 @@ void node_dup_data(node_t *dest, const node_t *src)
 
     if (src->comment) {
         /* The node has a comment attached. Duplicate it. */
-        if (!dest->comment) dest->comment = xcalloc(1, sizeof(*dest->comment));
+        if (!dest->comment) xcalloc(1, sizeof(*dest->comment));
         node_dup_data(dest->comment, src->comment);
     }
 }
