@@ -31,7 +31,9 @@ void set_yycolumn(int val) {
 [0-9]+                 { SAVE_INT; return NUMBER; }
 
 \/\/.*                 {} /* comments are ignored */
-\/\*[^(\*\/)]*\*\/     {} /* comments are ignored */
+
+\"\"\"[^\"\"\"]*\"\"\" { SAVE_STR; return FUNCTION_COMMENT_PARSER; } /* comments are ignored */
+
 "def"                  { return FUNC;         }
 "begin"                { return OPENBLOCK;    }
 "end"                  { return CLOSEBLOCK;   }

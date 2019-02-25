@@ -19,6 +19,9 @@ typedef struct node {
         int_type data_integer;
         char *data_char_ptr;
     };
+
+    struct node *comment; /* for functions (for now) */
+
     void *entry;
     uint64_t n_children;
     struct node **children;

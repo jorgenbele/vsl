@@ -6,7 +6,6 @@
 #include "node.h"
 #include "utils.h"
 
-
 /* node_print(): Recursively print the tree from 'root'. */
 void node_print(node_t *root, int nesting)
 {
@@ -39,7 +38,6 @@ void node_print(node_t *root, int nesting)
         #else
             printf("(%" PRIdit ")",  root->data_integer);
         #endif
-
         }
 
         /* Make a new line, and traverse the node's children in the same manner */
@@ -57,6 +55,7 @@ void node_print(node_t *root, int nesting)
         n->type = type;                                             \
         n->data = data;                                             \
         n->n_children = n_children;                                 \
+        n->comment = NULL;  /* Is set by the parser. */             \
                                                                     \
         n->children = xcalloc(n_children, sizeof(*n->children));    \
                                                                     \
@@ -118,7 +117,6 @@ void node_dup_data(node_t *dest, const node_t *src)
         debug("Incompatible arguments to node_dup_data!");
         exit(1);
     }
-
 }
 
 /* Remove a node and its contents */

@@ -35,11 +35,25 @@ enum node_type {
     NUMBER_DATA          = 24,
     STRING_DATA          = 25,
 
+    FUNCTION_COMMENT     = 26,
+
     /* Used to get the number of different node types. */
-    LAST_NO_TYPE         = 26
+    LAST_NO_TYPE         = 27
 };
 
+#define NODE_TYPE_IS_STATEMENT(type)                                \
+    (((type) == ASSIGNMENT_STATEMENT) || ((type) == STATEMENT)       \
+    || ((type) == RETURN_STATEMENT || ((type) == PRINT_STATEMENT)   \
+        || ((type) == NULL_STATEMENT) || ((type) == IF_STATEMENT)   \
+        || ((type) == WHILE_STATEMENT)))
+
+#define NODE_TYPE_IS_EXPRESSION(type)                       \
+    (((type) == EXPRESSION) || ((type) == IDENTIFIER_DATA)  \
+     || ((type) == NUMBER_DATA || ((type) == STRING_DATA)))
+
 #define NODE_TYPE_TO_FLAG(type) ((uint32_t) (1<<((type)+1)))
+
+#define N_NODE_FLAGS 29
 
 /* Node types as flags.
  * The above table is not specified as flags because that would make
@@ -71,6 +85,10 @@ enum node_flag {
     FLAG_IDENTIFIER_DATA       = (uint32_t) 1<<24,
     FLAG_NUMBER_DATA           = (uint32_t) 1<<25,
     FLAG_STRING_DATA           = (uint32_t) 1<<26,
+    FLAG_FUNCTION_COMMENT      = (uint32_t) 1<<27,
+
+    FLAG__UNUSED               = (uint32_t) 1<<28,
+    FLAG_KEEP_CHILDREN_TYPE    = (uint32_t) 1<<29,
 };
 
 /* typedef for the integer type to use in the compiler */
@@ -137,6 +155,6 @@ extern const uint32_t node_list_parents[LAST_NO_TYPE];
  * currently not used as the NODE_TYPE_TO_FLAG macro can be
  * used instead..
  */
-extern const enum node_flag node_type_to_flag[LAST_NO_TYPE];
+extern const enum node_flag node_type_to_flag[N_NODE_FLAGS];
 
 #endif // __NODETYPES_H_

@@ -12,26 +12,6 @@ void tree_destroy(node_t *n)
     node_finalize(n);
 }
 
-/*
- * Transforms the tree from:
- * ...
- * TYPE_LIST
- *    TYPE_LIST
- *       TYPE_LIST
- *          ...
- *          ELEM
- *       ELEM
- *    ELEM
- *
- * to:
- * ...
- * TYPE_LIST
- *    ...
- *    ELEM
- *    ELEM
- *    ELEM
- *
- */
 
 typedef node_t *node_t_ptr;
 DEF_VEC(node_t_ptr, node_t_ptr, NULL);
@@ -149,41 +129,80 @@ static void flatten(node_t *root, vec_node_t_ptr *abandoned)
         return;
     }
 
+
+    /* debug("ROOT: root_type: %s, root: %lu, n_children: %lu\n\n", */
+    /*             NODE_TO_TYPE_STRING(root), NODE_TYPE_TO_FLAG(root->type), root->n_children); */
     /*
      * Root is list, try to merge all children lists of the
      * same type into root, and add the unused nodes to abandoned.
      */
-    vec_node_t_ptr children;
+    //vec_node_t_ptr children;
+    VEC(node_t_ptr) children;
     VEC_INIT(&children, node_t_ptr);
 
-    for (size_t i = 0; i < root->n_children; i++) {
-        node_t_ptr child = root->children[i];
-        //debug("root_type: %s, left: %lu, right: %lu, res: %lu\n",
-        //      NODE_TO_TYPE_STRING(root),
-        //      node_list_parents[root->children[i]->type],
-        //      NODE_TYPE_TO_FLAG(root->type),
-        //      node_list_parents[root->children[i]->type] & NODE_TYPE_TO_FLAG(root->type));
+    /* debug("CHILD_TEST: root_type: %s, root: %lu, child_type: %s, child: %lu, res: %lu, keep_childs: %s\n", */
+    /*         NODE_TO_TYPE_STRING(root), */
+    /*         NODE_TYPE_TO_FLAG(root->type), */
+    /*         NODE_TO_TYPE_STRING(root->children[0]), */
+    /*         NODE_TYPE_TO_FLAG(root->children[0]->type), */
+    /*         node_list_parents[root->children[0]->type] & NODE_TYPE_TO_FLAG(root->type), */
+    /*       FLAG_KEEP_CHILDREN_TYPE & node_list_parents[root->children[0]->type] ? "TRUE" : "FALSE"); */
 
-        if (node_list_parents[root->children[i]->type] & NODE_TYPE_TO_FLAG(root->type)) {
-            /* Root and current child are compatible. Merge children of
-             * the current child with the root list. */
-            for (size_t j = 0; j < child->n_children; j++) {
-                VEC_PUSH(&children, node_t_ptr, child->children[j]);
-                /* Invalidate pointer in the original array. */
-                child->children[j] = NULL;
+    if (root->n_children == 1
+        && node_list_parents[root->children[0]->type] & NODE_TYPE_TO_FLAG(root->type)
+        && (FLAG_KEEP_CHILDREN_TYPE & node_list_parents[root->children[0]->type])) {
+
+    /* debug("CHILD: root_type: %s, root: %lu, child_type: %s, child: %lu, res: %lu, keep_childs: %s\n", */
+    /*         NODE_TO_TYPE_STRING(root), */
+    /*         NODE_TYPE_TO_FLAG(root->type), */
+    /*         NODE_TO_TYPE_STRING(root->children[0]), */
+    /*         NODE_TYPE_TO_FLAG(root->children[0]->type), */
+    /*         node_list_parents[root->children[0]->type] & NODE_TYPE_TO_FLAG(root->type), */
+    /*       FLAG_KEEP_CHILDREN_TYPE & node_list_parents[root->children[0]->type] ? "TRUE" : "FALSE"); */
+
+        /* The FLAG_KEEP_CHILDREN_TYPE is set on the child, which is also compatible with
+         * the root node. This means that we can swap the root node and the child node.
+         */
+         /* Invalidate the child pointer in the original root. */
+        node_t *child = root->children[0];
+        root->children[0] = NULL;
+
+        /* Do the swap. */
+        node_t temp = *root;
+        *root = *child;
+        *child = temp;
+
+        VEC_PUSH(abandoned, node_t_ptr, child);
+
+    } else {
+        for (size_t i = 0; i < root->n_children; i++) {
+            node_t_ptr child = root->children[i];
+            /* debug("root_type: %s, left: %lu, right: %lu, res: %lu\n", */
+            /*       NODE_TO_TYPE_STRING(root), */
+            /*       node_list_parents[root->children[i]->type], */
+            /*       NODE_TYPE_TO_FLAG(root->type), */
+            /*       node_list_parents[root->children[i]->type] & NODE_TYPE_TO_FLAG(root->type)); */
+
+            if (node_list_parents[root->children[i]->type] & NODE_TYPE_TO_FLAG(root->type)) {
+                /* Root and current child are compatible. Merge children of
+                 * the current child with the root list. */
+                for (size_t j = 0; j < child->n_children; j++) {
+                    VEC_PUSH(&children, node_t_ptr, child->children[j]);
+                    /* Invalidate pointer in the original array. */
+                    child->children[j] = NULL;
+                }
+                /* Push the invalidated node to abandoned vector. */
+                VEC_PUSH(abandoned, node_t_ptr, child);
+            } else {
+                /* No change.  */
+                VEC_PUSH(&children, node_t_ptr, child);
             }
-            /* Push the invalidated node to abandoned vector. */
-            VEC_PUSH(abandoned, node_t_ptr, child);
-        } else {
-            /* No change.  */
-            VEC_PUSH(&children, node_t_ptr, child);
         }
+        free(root->children);
+        root->children = VEC_ARRAY_PTR(&children);
+        root->n_children = VEC_LEN(&children);
+        /* NOTE: Does not destroy the vector data! */
     }
-
-    free(root->children);
-    root->children = VEC_ARRAY_PTR(&children);
-    root->n_children = VEC_LEN(&children);
-    /* NOTE: Does not destroy the vector data! */
 }
 
 /* NOTE: Changed order of parameters */

@@ -41,6 +41,8 @@
 %token  <str>      IDENTIFIER STRING
 %token  <integer>  NUMBER
 
+%token  <str>      FUNCTION_COMMENT_PARSER
+
 /* Non-terminals types */
 %type   <node> program global_list global function declaration_list declaration statement_list statement
 %type   <node> print_list print_item
@@ -49,6 +51,8 @@
 %type   <node> assignment_statement return_statement print_statement if_statement while_statement null_statement
 %type   <node> block relation
 %type   <node> identifier number string
+
+%type   <node> function_comment
 
 %%
 
@@ -94,7 +98,13 @@ declaration_list: declaration                   { $$ = C1(DECLARATION_LIST, NULL
         |       declaration_list declaration    { $$ = C2(DECLARATION_LIST, NULL, $1, $2); }
         ;
 
-function: FUNC identifier  '(' parameter_list ')' statement  { $$ = C3(FUNCTION, NULL, $2, $4, $6); };
+function: function_comment function {
+              $2->comment = $1;
+              $$ = $2;
+             }
+            | FUNC identifier  '(' parameter_list ')' statement  { $$ = C3(FUNCTION, NULL, $2, $4, $6); };
+
+function_comment: FUNCTION_COMMENT_PARSER { $$ = C0(FUNCTION_COMMENT, strdup($1)); } ;
 
 statement:
              assignment_statement    { $$ = C1(STATEMENT, NULL, $1); }

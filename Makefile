@@ -8,7 +8,7 @@ CC=clang
 
 .PHONEY: main clean purge rebuild
 
-main: main.c parser.o scanner.o nodetypes.o node.o utils.o tree.o node_source.o
+main: main.c parser.o scanner.o nodetypes.o node.o utils.o tree.o node_src.o node_python_src.o #node_source.o
 y.tab.h: parser.c
 scanner.c: y.tab.h scanner.l
 
