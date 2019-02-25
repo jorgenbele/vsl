@@ -4,11 +4,12 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-/* There are two rule sets; one which I will use in the rest of the compiler project,
+/*
+ * There are two rule sets; one which I will use in the rest of the compiler project,
  * and is currently used in the source recreation (node_src.c, node_python.c), and
  * one which matches the tree.correct files (which were released AFTER i created mine).
  */
-#define USE_TREE_CORRECT_RULES
+//#define USE_TREE_CORRECT_RULES
 
 /*
  * Enumeration of node types.
@@ -169,4 +170,4 @@ extern const uint32_t node_list_parents[LAST_NO_TYPE];
  */
 extern const enum node_flag node_type_to_flag[N_NODE_FLAGS];
 
-#endif // __NODETYPES_H_
+#endif /* ifndef __NODETYPES_H_ */

@@ -11,8 +11,8 @@ typedef struct node {
 
     int line, col;
 
-    /* Changed to use union instad of potentially
-       dangerous casting. */
+    /* Changed to use union instad of
+     * potentially dangerous casting. */
     union {
         uintmax_t data_max;
         void *data;
@@ -20,7 +20,7 @@ typedef struct node {
         char *data_char_ptr;
     };
 
-    struct node *comment; /* for functions (for now) */
+    struct node *comment; /* For functions (for now). */
 
     void *entry;
     uint64_t n_children;

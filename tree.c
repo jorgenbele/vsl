@@ -12,7 +12,6 @@ void tree_destroy(node_t *n)
     node_finalize(n);
 }
 
-
 typedef node_t *node_t_ptr;
 DEF_VEC(node_t_ptr, node_t_ptr, NULL);
 
@@ -79,7 +78,6 @@ static void eval_const_expr(node_t *root, vec_node_t_ptr *abandoned)
 #undef EVAL_CONST_EXPR1
 #undef EVAL_CONST_EXPR2
 
-
 /* eliminate_inter(): Removes nodes that only contains one child and are
  * of no particular use, other than that they were useful for parsing.
  *
@@ -129,40 +127,19 @@ static void flatten(node_t *root, vec_node_t_ptr *abandoned)
         return;
     }
 
-
-    /* debug("ROOT: root_type: %s, root: %lu, n_children: %lu\n\n", */
-    /*             NODE_TO_TYPE_STRING(root), NODE_TYPE_TO_FLAG(root->type), root->n_children); */
     /*
      * Root is list, try to merge all children lists of the
      * same type into root, and add the unused nodes to abandoned.
      */
-    //vec_node_t_ptr children;
     VEC(node_t_ptr) children;
     VEC_INIT(&children, node_t_ptr);
-
-    /* debug("CHILD_TEST: root_type: %s, root: %lu, child_type: %s, child: %lu, res: %lu, keep_childs: %s\n", */
-    /*         NODE_TO_TYPE_STRING(root), */
-    /*         NODE_TYPE_TO_FLAG(root->type), */
-    /*         NODE_TO_TYPE_STRING(root->children[0]), */
-    /*         NODE_TYPE_TO_FLAG(root->children[0]->type), */
-    /*         node_list_parents[root->children[0]->type] & NODE_TYPE_TO_FLAG(root->type), */
-    /*       FLAG_KEEP_CHILDREN_TYPE & node_list_parents[root->children[0]->type] ? "TRUE" : "FALSE"); */
 
     if (root->n_children == 1
         && node_list_parents[root->children[0]->type] & NODE_TYPE_TO_FLAG(root->type)
         && (FLAG_KEEP_CHILDREN_TYPE & node_list_parents[root->children[0]->type])) {
-
-    /* debug("CHILD: root_type: %s, root: %lu, child_type: %s, child: %lu, res: %lu, keep_childs: %s\n", */
-    /*         NODE_TO_TYPE_STRING(root), */
-    /*         NODE_TYPE_TO_FLAG(root->type), */
-    /*         NODE_TO_TYPE_STRING(root->children[0]), */
-    /*         NODE_TYPE_TO_FLAG(root->children[0]->type), */
-    /*         node_list_parents[root->children[0]->type] & NODE_TYPE_TO_FLAG(root->type), */
-    /*       FLAG_KEEP_CHILDREN_TYPE & node_list_parents[root->children[0]->type] ? "TRUE" : "FALSE"); */
-
         /* The FLAG_KEEP_CHILDREN_TYPE is set on the child, which is also compatible with
-         * the root node. This means that we can swap the root node and the child node.
-         */
+         * the root node. This means that we can swap the root node and the child node. */
+
          /* Invalidate the child pointer in the original root. */
         node_t *child = root->children[0];
         root->children[0] = NULL;
@@ -173,16 +150,9 @@ static void flatten(node_t *root, vec_node_t_ptr *abandoned)
         *child = temp;
 
         VEC_PUSH(abandoned, node_t_ptr, child);
-
     } else {
         for (size_t i = 0; i < root->n_children; i++) {
             node_t_ptr child = root->children[i];
-            /* debug("root_type: %s, left: %lu, right: %lu, res: %lu\n", */
-            /*       NODE_TO_TYPE_STRING(root), */
-            /*       node_list_parents[root->children[i]->type], */
-            /*       NODE_TYPE_TO_FLAG(root->type), */
-            /*       node_list_parents[root->children[i]->type] & NODE_TYPE_TO_FLAG(root->type)); */
-
             if (node_list_parents[root->children[i]->type] & NODE_TYPE_TO_FLAG(root->type)) {
                 /* Root and current child are compatible. Merge children of
                  * the current child with the root list. */
@@ -217,8 +187,7 @@ void tree_simplify(node_t *root)
     eval_const_expr(root, &abandoned);
 
     /* Destroy the abandoned nodes. */
-    while (VEC_LEN(&abandoned) >= 1 && !VEC_ERROR(&abandoned)) {
+    while (VEC_LEN(&abandoned) >= 1 && !VEC_ERROR(&abandoned))
         node_finalize(VEC_POP(&abandoned, node_t_ptr));
-    }
     VEC_DESTROY(&abandoned, node_t_ptr);
 }

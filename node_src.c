@@ -43,21 +43,23 @@ static void emit_str(const char *s) { if (!cur_col) { align_col(&cur_col, block_
 static void emit_number(const node_t *n) { emit_str(node_data_str(n, &slen)); need_sep = true; }
 static void emit_ident(const node_t *n) { emit_str(node_data_str(n, &slen)); }
 
-
-static void emit_variable_list(const node_t *n) {
+static void emit_variable_list(const node_t *n)
+{
     for (uint64_t i = 0; i < n->n_children; i++) {
         emit_ident(n->children[i]);
         if (i + 1 < n->n_children) emit_str(", ");
     }
 }
 
-static void emit_params(const node_t *n) {
+static void emit_params(const node_t *n)
+{
     emit_str("(");
     emit_variable_list(n);
     emit_str(")");
 }
 
-static void emit_assignment_statement(const node_t *n) {
+static void emit_assignment_statement(const node_t *n)
+{
     emit_ident(n->children[0]); need_sep = true;
     emit_str(":="); need_sep = true;
     emit_statement(n->children[1]);
@@ -66,7 +68,8 @@ static void emit_assignment_statement(const node_t *n) {
 
 static void error(const char *msg, const node_t *node) { fprintf(stderr, "ERROR: %s, %s\n", msg, NODE_TO_TYPE_STRING(node)); exit(2); }
 
-static void emit_arglist(const node_t *n) {
+static void emit_arglist(const node_t *n)
+{
     emit_str("(");
     for (uint64_t i = 0; i < n->n_children; i++) {
         emit_expression(n->children[i]); need_sep = false;
@@ -75,7 +78,8 @@ static void emit_arglist(const node_t *n) {
     emit_str(")");
 }
 
-static void emit_expression(const node_t *n) {
+static void emit_expression(const node_t *n)
+{
     expression_depth++;
 
     if (!strcmp(node_data_str(n, &slen), "func_call")) {
@@ -107,18 +111,21 @@ static void emit_expression(const node_t *n) {
     expression_depth--;
 }
 
-static void emit_return_statement(const node_t *n) {
+static void emit_return_statement(const node_t *n)
+{
     if (cur_col) NEWLINE;
     emit_str("return"); need_sep = true;
     emit_expression(n->children[0]);
     NEWLINE;
 }
 
-static void emit_string(const node_t *n) {
+static void emit_string(const node_t *n)
+{
     emit_str(node_data_str(n, &slen));
 }
 
-static void emit_print_statement(const node_t *n) {
+static void emit_print_statement(const node_t *n)
+{
     if (cur_col) NEWLINE;
     emit_str("print"); need_sep = true;
     for (uint64_t i = 0; i < n->n_children; i++) {
@@ -132,26 +139,22 @@ static void emit_print_statement(const node_t *n) {
     NEWLINE;
 }
 
-static void emit_declaration_list(const node_t *n) {
+static void emit_declaration_list(const node_t *n)
+{
     emit_str("var"); need_sep = true;
     emit_variable_list(n);
     NEWLINE;
-    //emit_str("var"); need_sep = true;
-    //for (uint64_t i = 0; i < n->n_children; i++) {
-    //    emit_ident(n->children[i]);
-    //    need_sep = true;
-    //    NEWLINE;
-    //}
-    //NEWLINE;
 }
 
-static void emit_relation(const node_t *n) {
+static void emit_relation(const node_t *n)
+{
     emit_expression(n->children[0]); need_sep = true;
     emit_str(node_data_str(n, &slen)); need_sep = true;
     emit_expression(n->children[1]); need_sep = true;
 }
 
-static void emit_if_statement(const node_t *n) {
+static void emit_if_statement(const node_t *n)
+{
     emit_str("if"); need_sep = true;
     emit_relation(n->children[0]); need_sep = true;
     emit_str("then"); need_sep = true;
@@ -169,7 +172,8 @@ static void emit_if_statement(const node_t *n) {
     }
 }
 
-static void emit_while_statement(const node_t *n) {
+static void emit_while_statement(const node_t *n)
+{
     emit_str("while"); need_sep = true;
     emit_relation(n->children[0]);
     emit_str("do"); need_sep = true;
@@ -177,15 +181,9 @@ static void emit_while_statement(const node_t *n) {
     emit_statement(n->children[1]); need_sep = true;
 }
 
-static void emit_statement(const node_t *n) {
+static void emit_statement(const node_t *n)
+{
     if (!NODE_TYPE_IS_STATEMENT(n->type)) {
-        //if (n->type == DECLARATION_LIST) {
-        //    emit_declaration_list(n);
-        //    return;
-        //} else if (NODE_TYPE_IS_EXPRESSION(n->type)) {
-        //    emit_expression(n);
-        //    return;
-        //}
         if (NODE_TYPE_IS_EXPRESSION(n->type)) {
             emit_expression(n);
             return;
@@ -204,7 +202,8 @@ static void emit_statement(const node_t *n) {
     }
 }
 
-static void emit_statement_list(const node_t *n) {
+static void emit_statement_list(const node_t *n)
+{
     /* Emit statement list */
     for (uint64_t i = 0; i < n->n_children; i++) {
         emit_statement(n->children[i]);
@@ -213,7 +212,8 @@ static void emit_statement_list(const node_t *n) {
 }
 
 
-static void emit_block(const node_t *n) {
+static void emit_block(const node_t *n)
+{
     if (cur_col) NEWLINE;
     emit_str("begin"); need_sep = true;
     NEWLINE;
@@ -242,12 +242,14 @@ static void emit_block(const node_t *n) {
     need_sep = true;
 }
 
-static void emit_comment(const node_t *n) {
+static void emit_comment(const node_t *n)
+{
     emit_str(n->data_char_ptr);
     NEWLINE;
 }
 
-static void emit_def(const node_t *n) {
+static void emit_def(const node_t *n)
+{
     if (n->comment) emit_comment(n->comment);
 
     emit_str("def"); need_sep = true;
@@ -255,10 +257,10 @@ static void emit_def(const node_t *n) {
     emit_params(n->children[1]); need_sep = true;
     NEWLINE;
     emit_node(n->children[2]);
-    //emit_block(n->children[2]);
 }
 
-static void emit_node(const node_t *n) {
+static void emit_node(const node_t *n)
+{
     switch (n->type) {
         case BLOCK:             emit_block(n); break;
         case FUNCTION:          emit_def(n); break;
@@ -269,6 +271,7 @@ static void emit_node(const node_t *n) {
         case STATEMENT:         emit_statement(n); break;
         case RETURN_STATEMENT:  emit_return_statement(n); break;
         case ASSIGNMENT_STATEMENT: emit_assignment_statement(n); break;
+        default: error("Node type not handled yet!", n); break;
     }
 }
 
