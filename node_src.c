@@ -134,11 +134,15 @@ static void emit_print_statement(const node_t *n) {
 
 static void emit_declaration_list(const node_t *n) {
     emit_str("var"); need_sep = true;
-    for (uint64_t i = 0; i < n->n_children; i++) {
-        emit_variable_list(n->children[i]);
-        need_sep = true;
-        NEWLINE;
-    }
+    emit_variable_list(n);
+    NEWLINE;
+    //emit_str("var"); need_sep = true;
+    //for (uint64_t i = 0; i < n->n_children; i++) {
+    //    emit_ident(n->children[i]);
+    //    need_sep = true;
+    //    NEWLINE;
+    //}
+    //NEWLINE;
 }
 
 static void emit_relation(const node_t *n) {
@@ -217,8 +221,14 @@ static void emit_block(const node_t *n) {
 
     for (uint64_t i = 0; i < n->n_children; i++) {
         switch (n->children[i]->type) {
-            //case DECLARATION_LIST: emit_declaration_list(n->children[i]); break;
-            case VARIABLE_LIST: emit_variable_list(n->children[i]); break;
+            case DECLARATION_LIST: emit_declaration_list(n->children[i]); break;
+            case VARIABLE_LIST: {
+                /* is a declaration list */
+                emit_str("var"); need_sep = true;
+                emit_variable_list(n->children[i]);
+                NEWLINE;
+                break;
+            }
             case STATEMENT_LIST: emit_statement_list(n->children[i]); break;
             default: error("Unexpected block child type: ", n->children[i]);
         }
