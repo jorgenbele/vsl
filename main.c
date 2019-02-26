@@ -19,12 +19,12 @@ int main(int argc, char *argv[])
     ////tree_simplify(root, NULL);
     tree_simplify(root);
 
-    //debug("\n\n==== SIMPLIFIED ====\n");
-    //node_print(root, 0);
+    debug("\n\n==== SIMPLIFIED ====\n");
+    node_print(root, 0);
 
-    //debug("\n\n==== SOURCE ====\n\n");
-    //src_print_fileno = 2;
-    //node_print_source(root);
+    debug("\n\n==== SOURCE ====\n\n");
+    src_print_fileno = 2;
+    node_print_source(root);
 
     //debug("\n\n==== PYTHON SOURCE ====\n\n");
     //python_src_print_fileno = 2;

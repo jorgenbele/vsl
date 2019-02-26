@@ -225,6 +225,9 @@ enum {ERR_VEC_EMPTY=1,ERR_VEC_TOO_SHORT,ERR_VEC_INIT};
     #define VEC_PUSH(vec, type, elem) \
         vec_push_##type((vec), (elem))
 
+    #define VEC_PEEK_PTR(vec, type, elem) \
+        vec_peek_ptr_##type((vec), (elem))
+
     #define VEC_PEEK(vec, type) \
         vec_peek_##type((vec))
 
@@ -256,6 +259,9 @@ enum {ERR_VEC_EMPTY=1,ERR_VEC_TOO_SHORT,ERR_VEC_INIT};
 
     #define VEC_PUSH(vec, type, elem) \
         vec_push_##type((vec), (elem)), assert(!(vec)->error)
+
+    #define VEC_PEEK_PTR(vec, type, elem) \
+        vec_peek_ptr_##type((vec), (elem))
 
     #define VEC_PEEK(vec, type) \
         vec_peek_##type((vec)), assert(!(vec)->error)

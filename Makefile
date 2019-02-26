@@ -9,9 +9,18 @@ LDLIBS+=-lc
 #CC=musl-clang
 CC=clang
 
-.PHONEY: main clean purge rebuild
+.PHONEY: main vsl_simplify vsl2py vsl_recreate clean purge rebuild
+
+all: main vsl_simplify vsl2py vsl_recreate
+
+vsl_simplify: vsl_simplify.c parser.o scanner.o nodetypes.o node.o utils.o tree.o node_python_src.o
+
+vsl2py: vsl2py.c parser.o scanner.o nodetypes.o node.o utils.o tree.o node_python_src.o
 
 main: main.c parser.o scanner.o nodetypes.o node.o utils.o tree.o node_src.o node_python_src.o #node_source.o
+
+vsl_recreate: vsl_recreate.c parser.o scanner.o nodetypes.o node.o utils.o tree.o node_src.o
+
 y.tab.h: parser.c
 scanner.c: y.tab.h scanner.l
 
@@ -21,4 +30,4 @@ clean:
 purge: clean
 	-rm -f main
 
-rebuild: clean purge main y.tab.h
+rebuild: clean purge main vsl_simplify vsl2py vsl_recreate y.tab.h
