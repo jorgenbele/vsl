@@ -1,6 +1,5 @@
 /*
- * NOTE: Does not support 'continue' in while statements when used
- * inside blocks, since blocks are implemented as function calls.
+ * "Complete" (for its current state) VSL to Python 3 transpiler.
  */
 
 #include "node_python_src.h"
@@ -499,7 +498,6 @@ void transpile_to_python(node_t *n)
 
     /* Transpile... */
     recursive_transpile(n);
-
 
     node_t *main_func = find_main_func(n);
     if (!main_func) {
