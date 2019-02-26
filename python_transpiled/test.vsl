@@ -1,0 +1,11 @@
+def fe(x)
+begin
+    return 0
+end
+
+def main() 
+begin
+    var x
+    x := fe (1)
+    return 0
+end
