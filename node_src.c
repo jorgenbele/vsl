@@ -280,6 +280,7 @@ static void emit_node(const node_t *n)
 void node_print_source(node_t *n)
 {
     switch (n->type) {
+        case VARIABLE_LIST: emit_declaration_list(n); NEWLINE; return; break;
         case DECLARATION_LIST: emit_declaration_list(n); NEWLINE; return; break;
         case FUNCTION: emit_def(n); NEWLINE; return; break;
         default: break;
