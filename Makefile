@@ -28,6 +28,6 @@ clean:
 	-rm -f parser.c scanner.c *.tab.* *.o
 
 purge: clean
-	-rm -f main
+	-rm -f main vsl_simplify vsl2py vsl_recreate
 
 rebuild: clean purge main vsl_simplify vsl2py vsl_recreate y.tab.h
