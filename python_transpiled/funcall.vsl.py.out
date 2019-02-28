@@ -1,0 +1,6 @@
+Calling my_function with parameters 5 10
+Parameter s is 5
+Parameter t is 10
+The sum of their squares is 125
+The returned result is 125
+The other returned result is 42

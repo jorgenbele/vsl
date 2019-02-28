@@ -1,0 +1,7 @@
+Testing if printf format codes are left alone. 
+Output *should* contain percent characters, but no integers.
+	Hello, world! %d %d
+Adding a splash of ANSI color codes - This will only work in a color terminal
+	[31mRed
+	[32mGreen
+	[34mBlue [0m
