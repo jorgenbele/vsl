@@ -22,6 +22,8 @@ typedef struct node {
     };
 
     struct node *comment; /* For functions (for now). */
+    struct node *original; /* Store the original subtree
+                            * which this node replaced. */
 
     void *entry;
     uint64_t n_children;

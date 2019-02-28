@@ -4,6 +4,7 @@
 #include <string.h>
 
 #include "node.h"
+#include "tree.h"
 #include "utils.h"
 
 /* Vector types. */
@@ -140,6 +141,7 @@ void node_finalize(node_t *n)
 {
     free(n->children);
     if (n->comment) node_finalize(n->comment);
+    if (n->original) tree_destroy(n->original);
     if (NODE_MALLOC_DATA(n)) free(n->data);
     free(n);
 }

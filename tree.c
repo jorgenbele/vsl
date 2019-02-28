@@ -64,10 +64,14 @@ static void eval_const_expr(node_t *root, vec_node_t_ptr *abandoned)
     *res = temp;
 
     /* Abandon the previous root and nodes, which are now found in res. */
-    for (size_t i = 0; i < res->n_children; i++)
-        VEC_PUSH(abandoned, node_t_ptr, res->children[i]);
+    //for (size_t i = 0; i < res->n_children; i++)
+    //    VEC_PUSH(abandoned, node_t_ptr, res->children[i]);
 
-    VEC_PUSH(abandoned, node_t_ptr, res);
+    //node_t *original = node_new(EXPRESSION_LIST, NULL, 0);
+    /* DOES NOT DESTROY THE CHILDS VECTOR.  */
+    root->original = res;
+
+    //VEC_PUSH(abandoned, node_t_ptr, res);
 
     return;
 }

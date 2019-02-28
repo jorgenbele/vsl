@@ -8,6 +8,8 @@
 
 #include "vec.h"
 
+#define EMIT_ORIGINAL_EXPRS
+
 #define BLOCK_INDENT 4
 
 /* List of globals. */
@@ -31,8 +33,17 @@ typedef struct scope scope_t;
 scope_t VEC_DEFAULT(scope_t) = {{0}, false};
 DEF_VEC(scope_t, scope_t, VEC_DEFAULT(scope_t));
 
-static bool block_scopes_inited = false;
 static VEC(scope_t) block_scopes;
+
+#define PUSH_NEW_SCOPE(scope_vars, is_while_loop) \
+    VEC_PUSH(&block_scopes, scope_t, ((scope_t){(scope_vars), (is_while_loop)}));
+
+#define POP_DESTROY_SCOPE                                   \
+    do {                                                    \
+        scope_t scope = VEC_POP(&block_scopes, scope_t);    \
+        VEC_DESTROY(&scope.vars, node_t_ptr);               \
+    } while (0);
+
 
 #define NEWLINE do { need_sep = false; emit_str("\n"); cur_line++; cur_col = 0; } while(0)
 
@@ -63,14 +74,16 @@ static void emit_str(const char *s) { if (!cur_col) { align_col(&cur_col, block_
 static void emit_number(const node_t *n) { emit_str(node_data_str(n, &slen)); need_sep = true; }
 static void emit_ident(const node_t *n) { emit_str(node_data_str(n, &slen)); }
 
-static void emit_variable_list(const node_t *n) {
+static void emit_variable_list(const node_t *n)
+{
     for (uint64_t i = 0; i < n->n_children; i++) {
         emit_ident(n->children[i]);
         if (i + 1 < n->n_children) emit_str(", ");
     }
 }
 
-static void emit_params(const node_t *n) {
+static void emit_params(const node_t *n)
+{
     emit_str("(");
     emit_variable_list(n);
     emit_str(")");
@@ -78,7 +91,8 @@ static void emit_params(const node_t *n) {
 
 static void error(const char *msg, const node_t *node) { fprintf(stderr, "ERROR: %s, %s\n", msg, NODE_TO_TYPE_STRING(node)); exit(2); }
 
-static void emit_arglist(const node_t *n) {
+static void emit_arglist(const node_t *n)
+{
     emit_str("(");
     for (uint64_t i = 0; i < n->n_children; i++) {
         emit_expression(n->children[i]); need_sep = false;
@@ -87,7 +101,21 @@ static void emit_arglist(const node_t *n) {
     emit_str(")");
 }
 
-static void emit_expression(const node_t *n) {
+static void emit_original(const node_t *n)
+{
+    emit_expression(n);
+}
+
+static void emit_expression(const node_t *n)
+{
+    #ifdef EMIT_ORIGINAL_EXPRS
+    if (n->original) {
+        /* Emit the original tree instead of the modified tree. */
+        emit_original(n->original);
+        return;
+    }
+    #endif
+
     expression_depth++;
 
     if (!strcmp(node_data_str(n, &slen), "func_call")) {
@@ -101,21 +129,24 @@ static void emit_expression(const node_t *n) {
         need_sep = false;
         if (expression_depth > 1) emit_str(")");
     } else if (n->n_children == 2) {
-        /* unary */
-        if (expression_depth > 1) emit_str("(");
-        emit_expression(n->children[0]); need_sep = true;
-
+        bool maybe_ambiguous = false;
         const char *expr = NULL;
         switch (*node_data_str(n, &slen)) {
             case '/': expr = "//"; break;
             case '*': expr = "*";  break;
-            case '+': expr = "+";  break;
-            case '-': expr = "-";  break;
+            case '+': maybe_ambiguous = true; expr = "+";  break;
+            case '-': maybe_ambiguous = true; expr = "-";  break;
         }
+
+        maybe_ambiguous = true; // ...
+
+        if (expression_depth > 1 && maybe_ambiguous) emit_str("(");
+        emit_expression(n->children[0]); need_sep = true;
+
         emit_str(expr); need_sep = true;
         emit_expression(n->children[1]);
         need_sep = false;
-        if (expression_depth > 1) emit_str(")");
+        if (expression_depth > 1 && maybe_ambiguous) emit_str(")");
     } else if (n->type == NUMBER_DATA) {
         emit_number(n);
     } else if (n->type == IDENTIFIER_DATA) {
@@ -127,22 +158,31 @@ static void emit_expression(const node_t *n) {
     expression_depth--;
 }
 
-static void emit_return_statement(const node_t *n) {
+static void emit_return_statement(const node_t *n)
+{
     if (cur_col) NEWLINE;
-    if (block_depth > 1) {
+    /* Check if not in the immediate scope of a function.
+     * Since the first scope is globals, the immediate scope is
+     * scope 2. */
+    if (VEC_LEN(&block_scopes) >= 3) {
         emit_str("return __BLOCK_RETURN___,"); need_sep = true;
     } else {
         emit_str("return"); need_sep = true;
     }
     emit_expression(n->children[0]);
+    //emit_str(" # emit_return_statement, ");
+    //dprintf(python_src_print_fileno, "block_depth: %d, ", block_depth);
+    //dprintf(python_src_print_fileno, "vec_len: %lu", VEC_LEN(&block_scopes));
     NEWLINE;
 }
 
-static void emit_string(const node_t *n) {
+static void emit_string(const node_t *n)
+{
     emit_str(node_data_str(n, &slen));
 }
 
-static void emit_print_statement(const node_t *n) {
+static void emit_print_statement(const node_t *n)
+{
     if (cur_col) NEWLINE;
     emit_str("print("); need_sep = true;
     for (uint64_t i = 0; i < n->n_children; i++) {
@@ -157,8 +197,7 @@ static void emit_print_statement(const node_t *n) {
     NEWLINE;
 }
 
-static void emit_declaration_list(const node_t *n) { (void) n;
-/* handle globals ? */
+static void emit_declaration_list(const node_t *n) {
     /* Initialize to None */
     for (uint64_t i = 0; i < n->n_children; i++) {
         emit_ident(n->children[i]);
@@ -168,7 +207,8 @@ static void emit_declaration_list(const node_t *n) { (void) n;
     dprintf(python_src_print_fileno, "%" PRIu64, n->n_children);
     return; }
 
-static void emit_relation(const node_t *n) {
+static void emit_relation(const node_t *n)
+{
     emit_expression(n->children[0]); need_sep = true;
 
     char *out;
@@ -182,7 +222,8 @@ static void emit_relation(const node_t *n) {
     emit_expression(n->children[1]); need_sep = true;
 }
 
-static void emit_if_statement(const node_t *n) {
+static void emit_if_statement(const node_t *n)
+{
     if (cur_col) NEWLINE;
     emit_str("if"); need_sep = true;
     emit_relation(n->children[0]); need_sep = true;
@@ -203,7 +244,8 @@ static void emit_if_statement(const node_t *n) {
     }
 }
 
-static void emit_while_statement(const node_t *n) {
+static void emit_while_statement(const node_t *n)
+{
     if (cur_col) NEWLINE;
 
     VEC(node_t_ptr) scope_vars;
@@ -212,22 +254,22 @@ static void emit_while_statement(const node_t *n) {
     /* Push a new, empty scope with the while_loop bool set.
      * This is used when to handle continue statements.
      */
-    VEC_PUSH(&block_scopes, scope_t, ((scope_t){scope_vars, true}));
-
-    emit_str("while (");
-    emit_relation(n->children[0]);
-    emit_str("):");
-    NEWLINE;
-    block_depth++;
-    emit_statement(n->children[1]); need_sep = true;
-    block_depth--;
-
-    VEC_POP(&block_scopes, scope_t);
-    VEC_DESTROY(&scope_vars, node_t_ptr);
+    PUSH_NEW_SCOPE(scope_vars, true);
+    {
+        emit_str("while (");
+        emit_relation(n->children[0]);
+        emit_str("):");
+        NEWLINE;
+        block_depth++;
+        emit_statement(n->children[1]); need_sep = true;
+        block_depth--;
+    }
+    POP_DESTROY_SCOPE;
 }
 
-static void emit_null_statement(const node_t *n) {
-    /* continue */
+static void emit_null_statement(const node_t *n)
+{
+    (void) n;
 
     /* If the closest scope is a while statement scope, then
      * just emit 'continue' directly. If not, then return with
@@ -240,15 +282,9 @@ static void emit_null_statement(const node_t *n) {
     }
 }
 
-static void emit_statement(const node_t *n) {
+static void emit_statement(const node_t *n)
+{
     if (!NODE_TYPE_IS_STATEMENT(n->type)) {
-        //if (n->type == DECLARATION_LIST) {
-        //    emit_declaration_list(n);
-        //    return;
-        //} else if (NODE_TYPE_IS_EXPRESSION(n->type)) {
-        //    emit_expression(n);
-        //    return;
-        //}
         if (NODE_TYPE_IS_EXPRESSION(n->type)) {
             emit_expression(n);
             return;
@@ -267,7 +303,8 @@ static void emit_statement(const node_t *n) {
     }
 }
 
-static void emit_statement_list(const node_t *n) {
+static void emit_statement_list(const node_t *n)
+{
     /* Emit statement list */
     for (uint64_t i = 0; i < n->n_children; i++) {
         emit_statement(n->children[i]);
@@ -275,14 +312,9 @@ static void emit_statement_list(const node_t *n) {
     }
 }
 
-static void emit_block(const node_t *n) {
+static void emit_block(const node_t *n)
+{
     if (cur_col) NEWLINE;
-
-    if (!block_scopes_inited) {
-        VEC_INIT(&block_scopes, scope_t);
-        block_scopes_inited = true;
-        /* TODO: Destroy... */
-    }
 
     VEC(node_t_ptr) scope_vars;
     VEC_INIT(&scope_vars, node_t_ptr);
@@ -292,7 +324,7 @@ static void emit_block(const node_t *n) {
     for (uint64_t i = 0; i < n->n_children; i++) {
         switch (n->children[i]->type) {
             case DECLARATION_LIST: {
-                /* push vars to scope */
+                /* Push vars to scope. */
                 for (uint64_t j = 0; j < n->children[i]->n_children; j++) {
                     assert(n->children[i]->children[j]->type == IDENTIFIER_DATA);
                     VEC_PUSH(&scope_vars, node_t_ptr, n->children[i]->children[j]);
@@ -300,7 +332,6 @@ static void emit_block(const node_t *n) {
                 break;
             }
 
-            /*  emit_declaration_list(n->children[i]); */ break;
             case VARIABLE_LIST: {
                 /* Push vars to scope.  */
                 for (uint64_t j = 0; j < n->children[i]->n_children; j++) {
@@ -379,21 +410,19 @@ static void emit_block(const node_t *n) {
         NEWLINE;
     }
 
-    VEC_PUSH(&block_scopes, scope_t, ((scope_t){scope_vars, false}));
-
-    for (uint64_t i = 0; i < n->n_children; i++) {
-        switch (n->children[i]->type) {
-            case STATEMENT_LIST: emit_statement_list(n->children[i]); break;
-            default: break;
+    PUSH_NEW_SCOPE(scope_vars, false);
+    {
+        for (uint64_t i = 0; i < n->n_children; i++) {
+            switch (n->children[i]->type) {
+                case STATEMENT_LIST: emit_statement_list(n->children[i]); break;
+                default: break;
+            }
         }
+
+        emit_str("return __BLOCK_DO_NOTHING___, None"); /* default return */
+        block_depth--;
     }
-
-    emit_str("return __BLOCK_DO_NOTHING___, None"); /* default return */
-
-    block_depth--;
-
-    VEC_POP(&block_scopes, scope_t);
-    VEC_DESTROY(&scope_vars, node_t_ptr);
+    POP_DESTROY_SCOPE;
 
     if (cur_col) NEWLINE;
 
@@ -405,37 +434,40 @@ static void emit_block(const node_t *n) {
         emit_str("if __ret_type___ == __BLOCK_RETURN___:"); NEWLINE;
         block_depth++;
         if (block_depth > 2) {
-            emit_str("return __ret_type___, __ret_val___"); NEWLINE;
+            emit_str("return __ret_type___, __ret_val___  # return to outer block"); NEWLINE;
         } else {
-            emit_str("return __ret_val___"); NEWLINE;
+            emit_str("return __ret_val___ # return function"); NEWLINE;
         }
         block_depth--;
         emit_str("elif __ret_type___ == __BLOCK_CONTINUE___:"); NEWLINE;
         block_depth++;
 
         {
-            /* see emit_null_statement  */
+            /* See emit_null_statement.  */
             scope_t curr = VEC_PEEK(&block_scopes, scope_t);
             if (curr.is_while_loop) {
                 emit_str("continue"); NEWLINE;
             } else {
-                emit_str("return __BLOCK_CONTINUE___, None"); NEWLINE;
+                emit_str("return __BLOCK_CONTINUE___, None # continue"); NEWLINE;
             }
         }
-        emit_str("return __ret_val___"); NEWLINE;
         block_depth--;
+        //emit_str("return __ret_val___ # test");
+        NEWLINE;
     }
 
     NEWLINE;
     need_sep = true;
 }
 
-static void emit_comment(const node_t *n) {
+static void emit_comment(const node_t *n)
+{
     emit_str(n->data_char_ptr);
     NEWLINE;
 }
 
-static void emit_def(const node_t *n) {
+static void emit_def(const node_t *n)
+{
     if (n->comment) emit_comment(n->comment);
 
     emit_str("def"); need_sep = true;
@@ -445,21 +477,21 @@ static void emit_def(const node_t *n) {
     VEC(node_t_ptr) scope_vars;
     VEC_INIT(&scope_vars, node_t_ptr);
 
-    /* push parameters to the block scopes vector */
+    /* Push parameters to the block scopes vector. */
     for (uint64_t i = 0; i < n->children[1]->n_children; i++) {
         VEC_PUSH(&scope_vars, node_t_ptr, n->children[1]->children[i]);
     }
 
-    VEC_PUSH(&block_scopes, scope_t, ((scope_t){scope_vars, false}));
-
-    emit_str(":");
-    emit_block(n->children[2]);
-
-    VEC_POP(&block_scopes, scope_t);
-    VEC_DESTROY(&scope_vars, node_t_ptr);
+    PUSH_NEW_SCOPE(scope_vars, false);
+    {
+        emit_str(":");
+        emit_block(n->children[2]);
+    }
+    POP_DESTROY_SCOPE;
 }
 
-static void recursive_transpile(node_t *n) {
+static void recursive_transpile(node_t *n)
+{
     switch (n->type) {
         case VARIABLE_LIST: emit_declaration_list(n); NEWLINE; return; break;
         case DECLARATION_LIST: emit_declaration_list(n); NEWLINE; return; break;
@@ -483,6 +515,8 @@ static node_t *find_main_func(node_t *root) {
 
 void transpile_to_python(node_t *n)
 {
+    VEC_INIT(&block_scopes, scope_t);
+
     /* Comment. */
     dprintf(python_src_print_fileno, "\"\"\""
         "\nTranspiled from vsl to python\n"
@@ -513,8 +547,5 @@ void transpile_to_python(node_t *n)
 
     dprintf(python_src_print_fileno, ")\n");
 
-    if (block_scopes_inited) {
-        block_scopes_inited = false;
-        VEC_DESTROY(&block_scopes, scope_t);
-    }
+    VEC_DESTROY(&block_scopes, scope_t);
 }
