@@ -1,6 +1,6 @@
-
-// This program tests activation records, function call and return
-
+"""
+This program tests activation records, function call and return
+"""
 def main ()
 begin
     var x,y,z

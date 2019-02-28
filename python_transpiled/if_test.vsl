@@ -1,6 +1,6 @@
-
-// This program is a simple test of conditionals, including nesting
-
+"""
+This program is a simple test of conditionals, including nesting
+"""
 def main ()
 begin
     var a,b

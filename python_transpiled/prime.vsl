@@ -1,5 +1,7 @@
-// VSL version of prime assembly exercise, courtesy
-// of J.H.Ø. Anthony (class of 2011)
+"""
+VSL version of prime assembly exercise, courtesy
+of J.H.Ø. Anthony (class of 2011)
+"""
 
 def main ()
 begin

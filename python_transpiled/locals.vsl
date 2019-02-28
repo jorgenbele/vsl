@@ -1,8 +1,8 @@
-
-// This program tests the evaluation of local scopes
-
 var i,j,k
 
+"""
+This program tests the evaluation of local scopes
+"""
 def main ( x, y, z )
 begin
     var a,b

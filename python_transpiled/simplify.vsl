@@ -1,4 +1,6 @@
-// Function list
+"""
+Function list
+"""
 def f()
 begin
     return 0

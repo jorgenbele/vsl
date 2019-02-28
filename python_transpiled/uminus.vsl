@@ -1,6 +1,6 @@
-
-// This program tests the evaluation of the unary minus
-
+"""
+This program tests the evaluation of the unary minus
+"""
 def main ()
 begin
     var a,b
