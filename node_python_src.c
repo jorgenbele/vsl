@@ -7,6 +7,7 @@
 #include <assert.h>
 
 #include "vec.h"
+#include "utils.h"
 
 #define EMIT_ORIGINAL_EXPRS
 
@@ -161,6 +162,11 @@ static void emit_expression(const node_t *n)
 static void emit_return_statement(const node_t *n)
 {
     if (cur_col) NEWLINE;
+
+    emit_str(" # __return__ ");;
+    dprintf(python_src_print_fileno, " %lu", VEC_LEN(&block_scopes));
+    NEWLINE;
+
     /* Check if not in the immediate scope of a function.
      * Since the first scope is globals, the immediate scope is
      * scope 2. */
@@ -344,7 +350,7 @@ static void emit_block(const node_t *n)
         }
     }
 
-    if (block_depth == 0) {
+    if (VEC_LEN(&block_scopes) == 1) {
         /* Add a default nonlocal to simplify the process since there is
          * no need to make sure that there exists any nonlocals before
          * printing 'nonlocal' anymore. */
@@ -354,11 +360,11 @@ static void emit_block(const node_t *n)
         block_depth--;
     }
 
-    if (block_depth > 0) {
+    if (VEC_LEN(&block_scopes) >= 3-1) {
         /* Emulated block scopes by creating and calling
          * functions defined inside other functions. */
         emit_str("def block_");
-        dprintf(python_src_print_fileno, "%d():", block_depth);
+        dprintf(python_src_print_fileno, "%lu():", VEC_LEN(&block_scopes));
         NEWLINE;
 
         block_depth++; /* hack */
@@ -410,6 +416,11 @@ static void emit_block(const node_t *n)
         NEWLINE;
     }
 
+
+    emit_str(" # new scope ");;
+    dprintf(python_src_print_fileno, " %lu", VEC_LEN(&block_scopes));
+    NEWLINE;
+
     PUSH_NEW_SCOPE(scope_vars, false);
     {
         for (uint64_t i = 0; i < n->n_children; i++) {
@@ -419,21 +430,21 @@ static void emit_block(const node_t *n)
             }
         }
 
-        emit_str("return __BLOCK_DO_NOTHING___, None"); /* default return */
+        emit_str("return __BLOCK_DO_NOTHING___, None # default return"); /* default return */
         block_depth--;
     }
     POP_DESTROY_SCOPE;
 
     if (cur_col) NEWLINE;
 
-    if (block_depth > 0) {
+    if (VEC_LEN(&block_scopes) >= 3-1) {
         /* Call the created function. */
         emit_str("__ret_type___, __ret_val___ = block_");
-        dprintf(python_src_print_fileno, "%d()", block_depth);
+        dprintf(python_src_print_fileno, "%lu()", VEC_LEN(&block_scopes));
         NEWLINE;
         emit_str("if __ret_type___ == __BLOCK_RETURN___:"); NEWLINE;
         block_depth++;
-        if (block_depth > 2) {
+        if (VEC_LEN(&block_scopes) > 3) {
             emit_str("return __ret_type___, __ret_val___  # return to outer block"); NEWLINE;
         } else {
             emit_str("return __ret_val___ # return function"); NEWLINE;
@@ -515,6 +526,8 @@ static node_t *find_main_func(node_t *root) {
 
 void transpile_to_python(node_t *n)
 {
+    DEBUG_START_TIME_TAKING_BLOCK(transpile_to_python);
+
     VEC_INIT(&block_scopes, scope_t);
 
     /* Comment. */
@@ -531,13 +544,17 @@ void transpile_to_python(node_t *n)
     dprintf(python_src_print_fileno, "__BLOCK_RETURN___ = 2"); NEWLINE;
 
     /* Transpile... */
+    DEBUG_START_TIME_TAKING_BLOCK(recursive_transpile);
     recursive_transpile(n);
+    DEBUG_END_TIME_TAKING_BLOCK(recursive_transpile);
 
+    /* DEBUG_START_TIME_TAKING_BLOCK(find_main_func); */
     node_t *main_func = find_main_func(n);
     if (!main_func) {
         fprintf(stderr, "No main function defined!");
         return;
     }
+    /* DEBUG_END_TIME_TAKING_BLOCK(find_main_func); */
 
     /* Create entry from main with the same amount of arguments. */
     dprintf(python_src_print_fileno, "if __name__ == '__main__':\n" "\t" "main(");
@@ -548,4 +565,6 @@ void transpile_to_python(node_t *n)
     dprintf(python_src_print_fileno, ")\n");
 
     VEC_DESTROY(&block_scopes, scope_t);
+
+    DEBUG_END_TIME_TAKING_BLOCK(transpile_to_python);
 }
