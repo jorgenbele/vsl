@@ -45,6 +45,15 @@ static VEC(scope_t) block_scopes;
         VEC_DESTROY(&scope.vars, node_t_ptr);               \
     } while (0);
 
+#define PEEK_CURRENT_SCOPE() VEC_PEEK(&block_scopes, scope_t)
+
+#define CURRENT_SCOPE_DEPTH() VEC_LEN(&block_scopes)
+
+#define GLOBAL_SCOPE_DEPTH         1
+#define FUNCTION_SCOPE_DEPTH       2
+#define INNER_FUNCTION_SCOPE_DEPTH 3
+
+#define EMIT_FMT(fmt, ...) do { cur_col += dprintf(python_src_print_fileno, fmt, __VA_ARGS__); } while(0)
 
 #define NEWLINE do { need_sep = false; emit_str("\n"); cur_line++; cur_col = 0; } while(0)
 
@@ -85,9 +94,7 @@ static void emit_variable_list(const node_t *n)
 
 static void emit_params(const node_t *n)
 {
-    emit_str("(");
-    emit_variable_list(n);
-    emit_str(")");
+    emit_str("("); emit_variable_list(n); emit_str(")");
 }
 
 static void error(const char *msg, const node_t *node) { fprintf(stderr, "ERROR: %s, %s\n", msg, NODE_TO_TYPE_STRING(node)); exit(2); }
@@ -163,22 +170,17 @@ static void emit_return_statement(const node_t *n)
 {
     if (cur_col) NEWLINE;
 
-    emit_str(" # __return__ ");;
-    dprintf(python_src_print_fileno, " %lu", VEC_LEN(&block_scopes));
-    NEWLINE;
+    emit_str(" # __return__ "); EMIT_FMT("%" PRIu64, CURRENT_SCOPE_DEPTH()); NEWLINE;
 
     /* Check if not in the immediate scope of a function.
      * Since the first scope is globals, the immediate scope is
      * scope 2. */
-    if (VEC_LEN(&block_scopes) >= 3) {
+    if (CURRENT_SCOPE_DEPTH() >= INNER_FUNCTION_SCOPE_DEPTH) {
         emit_str("return __BLOCK_RETURN___,"); need_sep = true;
     } else {
         emit_str("return"); need_sep = true;
     }
     emit_expression(n->children[0]);
-    //emit_str(" # emit_return_statement, ");
-    //dprintf(python_src_print_fileno, "block_depth: %d, ", block_depth);
-    //dprintf(python_src_print_fileno, "vec_len: %lu", VEC_LEN(&block_scopes));
     NEWLINE;
 }
 
@@ -211,7 +213,8 @@ static void emit_declaration_list(const node_t *n) {
     }
     emit_str(" = [0]*");
     dprintf(python_src_print_fileno, "%" PRIu64, n->n_children);
-    return; }
+    return;
+}
 
 static void emit_relation(const node_t *n)
 {
@@ -235,17 +238,20 @@ static void emit_if_statement(const node_t *n)
     emit_relation(n->children[0]); need_sep = true;
     emit_str(":"); need_sep = true;
 
-    block_depth++;
-    emit_statement(n->children[1]); need_sep = true;
-    block_depth--;
+    {
+        block_depth++;
+        emit_statement(n->children[1]); need_sep = true;
+        block_depth--;
+    }
 
     if (n->n_children == 3) {
         if (cur_col) NEWLINE;
-        emit_str("else:"); need_sep = true;
-        if (cur_col) NEWLINE;
-        block_depth++;
-        emit_statement(n->children[2]);
-        block_depth--;
+        emit_str("else:"); NEWLINE;
+        {
+            block_depth++;
+            emit_statement(n->children[2]);
+            block_depth--;
+        }
         need_sep = true;
     }
 }
@@ -258,17 +264,15 @@ static void emit_while_statement(const node_t *n)
     VEC_INIT(&scope_vars, node_t_ptr);
 
     /* Push a new, empty scope with the while_loop bool set.
-     * This is used when to handle continue statements.
-     */
+     * This is used when to handle continue statements. */
     PUSH_NEW_SCOPE(scope_vars, true);
     {
-        emit_str("while (");
-        emit_relation(n->children[0]);
-        emit_str("):");
-        NEWLINE;
-        block_depth++;
-        emit_statement(n->children[1]); need_sep = true;
-        block_depth--;
+        emit_str("while ("); emit_relation(n->children[0]); emit_str("):"); NEWLINE;
+        {
+            block_depth++;
+            emit_statement(n->children[1]); need_sep = true;
+            block_depth--;
+        }
     }
     POP_DESTROY_SCOPE;
 }
@@ -280,7 +284,7 @@ static void emit_null_statement(const node_t *n)
     /* If the closest scope is a while statement scope, then
      * just emit 'continue' directly. If not, then return with
      * the continue flag and let the callee (block) handle it further. */
-    scope_t curr = VEC_PEEK(&block_scopes, scope_t);
+    scope_t curr = PEEK_CURRENT_SCOPE();
     if (curr.is_while_loop) {
         emit_str("continue"); NEWLINE;
     } else {
@@ -313,8 +317,7 @@ static void emit_statement_list(const node_t *n)
 {
     /* Emit statement list */
     for (uint64_t i = 0; i < n->n_children; i++) {
-        emit_statement(n->children[i]);
-        need_sep = true;
+        emit_statement(n->children[i]); need_sep = true;
     }
 }
 
@@ -350,22 +353,19 @@ static void emit_block(const node_t *n)
         }
     }
 
-    if (VEC_LEN(&block_scopes) == 1) {
+    if (CURRENT_SCOPE_DEPTH() == FUNCTION_SCOPE_DEPTH-1) {
         /* Add a default nonlocal to simplify the process since there is
          * no need to make sure that there exists any nonlocals before
          * printing 'nonlocal' anymore. */
         block_depth++;
-        emit_str("__default_nonlocal___ = None");
-        NEWLINE;
+        emit_str("__default_nonlocal___ = None"); NEWLINE;
         block_depth--;
     }
 
-    if (VEC_LEN(&block_scopes) >= 3-1) {
+    if (CURRENT_SCOPE_DEPTH() >= INNER_FUNCTION_SCOPE_DEPTH-1) {
         /* Emulated block scopes by creating and calling
          * functions defined inside other functions. */
-        emit_str("def block_");
-        dprintf(python_src_print_fileno, "%lu():", VEC_LEN(&block_scopes));
-        NEWLINE;
+        emit_str("def block_"); EMIT_FMT("%lu():", VEC_LEN(&block_scopes)); NEWLINE;
 
         block_depth++; /* hack */
 
@@ -373,7 +373,7 @@ static void emit_block(const node_t *n)
          * (all vars lists above this one). */
          /* NOTE: May contain repeated identifiers. */
         for (uint64_t i = 0; i < VEC_LEN(&block_scopes); i++) {
-                /* NOTE: this does not include the CURRENT SCOPE. */
+            /* NOTE: this does not include the CURRENT SCOPE. */
             scope_t *scope = VEC_GET_PTR(&block_scopes, scope_t, i);
             if (!VEC_LEN(&scope->vars)) continue;
 
@@ -395,7 +395,7 @@ static void emit_block(const node_t *n)
                 }
 
                 if (in_new_scope) continue;
-                dprintf(python_src_print_fileno, ", %s", ptr->data_char_ptr);
+                EMIT_FMT(", %s", ptr->data_char_ptr);
             }
             NEWLINE;
         }
@@ -412,13 +412,13 @@ static void emit_block(const node_t *n)
             if (i + 1 < VEC_LEN(&scope_vars)) emit_str(", ");
         }
         emit_str(" = [0]*");
-        dprintf(python_src_print_fileno, "%" PRIu64, VEC_LEN(&scope_vars));
+        EMIT_FMT("%" PRIu64, VEC_LEN(&scope_vars));
         NEWLINE;
     }
 
 
     emit_str(" # new scope ");;
-    dprintf(python_src_print_fileno, " %lu", VEC_LEN(&block_scopes));
+    EMIT_FMT("%" PRIu64, CURRENT_SCOPE_DEPTH());
     NEWLINE;
 
     PUSH_NEW_SCOPE(scope_vars, false);
@@ -437,14 +437,15 @@ static void emit_block(const node_t *n)
 
     if (cur_col) NEWLINE;
 
-    if (VEC_LEN(&block_scopes) >= 3-1) {
+    if (CURRENT_SCOPE_DEPTH() >= INNER_FUNCTION_SCOPE_DEPTH-1) {
         /* Call the created function. */
         emit_str("__ret_type___, __ret_val___ = block_");
-        dprintf(python_src_print_fileno, "%lu()", VEC_LEN(&block_scopes));
+        EMIT_FMT("%" PRIu64 "()", CURRENT_SCOPE_DEPTH());
+        //dprintf(python_src_print_fileno, "%lu()", VEC_LEN(&block_scopes));
         NEWLINE;
         emit_str("if __ret_type___ == __BLOCK_RETURN___:"); NEWLINE;
         block_depth++;
-        if (VEC_LEN(&block_scopes) > 3) {
+        if (CURRENT_SCOPE_DEPTH() > INNER_FUNCTION_SCOPE_DEPTH) {
             emit_str("return __ret_type___, __ret_val___  # return to outer block"); NEWLINE;
         } else {
             emit_str("return __ret_val___ # return function"); NEWLINE;
@@ -531,38 +532,50 @@ void transpile_to_python(node_t *n)
     VEC_INIT(&block_scopes, scope_t);
 
     /* Comment. */
-    dprintf(python_src_print_fileno, "\"\"\""
-        "\nTranspiled from vsl to python\n"
-        "\"\"\"\n"
-    );
+    emit_str("\"\"\""); NEWLINE;
+    emit_str("Transpiled from vsl to python 3"); NEWLINE;
+    emit_str("\"\"\""); NEWLINE;
+
+    //dprintf(python_src_print_fileno, "\"\"\""
+    //    "\nTranspiled from vsl to python\n"
+    //    "\"\"\"\n"
+    //);
     /* Import statements. */
-    dprintf(python_src_print_fileno, "%s", "from sys import argv\n\n");
+    //dprintf(python_src_print_fileno, "%s", "from sys import argv\n\n");
+    emit_str("from sys import argv"); NEWLINE; NEWLINE;
 
     /* Constants used by code generated by the transpiler. */
-    dprintf(python_src_print_fileno, "__BLOCK_DO_NOTHING___ = 0"); NEWLINE;
-    dprintf(python_src_print_fileno, "__BLOCK_CONTINUE___ = 1"); NEWLINE;
-    dprintf(python_src_print_fileno, "__BLOCK_RETURN___ = 2"); NEWLINE;
+    //dprintf(python_src_print_fileno, "__BLOCK_DO_NOTHING___ = 0"); NEWLINE;
+    emit_str("__BLOCK_DO_NOTHING___ = 0"); NEWLINE;
+    //dprintf(python_src_print_fileno, "__BLOCK_CONTINUE___ = 1"); NEWLINE;
+    emit_str("__BLOCK_CONTINUE___ = 1"); NEWLINE;
+    //dprintf(python_src_print_fileno, "__BLOCK_RETURN___ = 2"); NEWLINE;
+    emit_str("__BLOCK_RETURN___ = 2"); NEWLINE;
 
     /* Transpile... */
     DEBUG_START_TIME_TAKING_BLOCK(recursive_transpile);
     recursive_transpile(n);
     DEBUG_END_TIME_TAKING_BLOCK(recursive_transpile);
 
-    /* DEBUG_START_TIME_TAKING_BLOCK(find_main_func); */
     node_t *main_func = find_main_func(n);
     if (!main_func) {
         fprintf(stderr, "No main function defined!");
         return;
     }
-    /* DEBUG_END_TIME_TAKING_BLOCK(find_main_func); */
 
     /* Create entry from main with the same amount of arguments. */
-    dprintf(python_src_print_fileno, "if __name__ == '__main__':\n" "\t" "main(");
+    emit_str("if __name__ == '__main__':"); NEWLINE;
+    {
+        block_depth++;
+        emit_str("main(");
 
-    for (uint64_t i = 0; i < main_func->children[1]->n_children; i++)
-        dprintf(python_src_print_fileno, "int(argv[%" PRId64 "])%s", i + 1, i + 1 < main_func->children[1]->n_children ? ", " : "");
+        for (uint64_t i = 0; i < main_func->children[1]->n_children; i++)
+            EMIT_FMT("int(argv[%" PRId64 "])%s", i + 1, i + 1 < main_func->children[1]->n_children ? ", " : "");
 
-    dprintf(python_src_print_fileno, ")\n");
+        emit_str(")"); NEWLINE;
+        block_depth--;
+    }
+    assert(block_depth == 0);
 
     VEC_DESTROY(&block_scopes, scope_t);
 
