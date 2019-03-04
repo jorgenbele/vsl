@@ -1,5 +1,5 @@
 """
-Transpiled from vsl to python
+Transpiled from vsl to python 3
 """
 from sys import argv
 
@@ -12,6 +12,7 @@ Test parentheses/precedence w. 2*(3-1) vs 2*3-1
 def main():
     __default_nonlocal___ = None
     a, b, c, d = [0]*4
+     # new scope 1
     a = 2
     b = 3
     c = 1
@@ -19,9 +20,10 @@ def main():
     print( "2*(3-1) := ", d )
     d = (a * b) - c
     print( "2*3-1 := ", d )
+     # __return__ 2
     return 0
-    return __BLOCK_DO_NOTHING___, None
+    return __BLOCK_DO_NOTHING___, None # default return
 
 
 if __name__ == '__main__':
-	main()
+    main()

@@ -1,7 +1,7 @@
 #!/bin/sh
 echo "Doing file: $1"
-once="$(./main < "$1")"
-twice="$(./main < "$1" | ./main)"
+once="$(./vsl_simplify < "$1")"
+twice="$(./vsl_recreate < "$1" | ./vsl_simplify)"
 
 if [ "$once" != "$twice" ]; then
     echo "$once" > /tmp/once_diff1

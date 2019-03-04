@@ -1,5 +1,5 @@
 """
-Transpiled from vsl to python
+Transpiled from vsl to python 3
 """
 from sys import argv
 
@@ -9,6 +9,7 @@ __BLOCK_RETURN___ = 2
 def main():
     __default_nonlocal___ = None
     a, b = [0]*2
+     # new scope 1
     print( "Testing if printf format codes are left alone.", "\nOutput *should* contain percent characters, but no integers.")
     a = 64
     b = 42
@@ -17,9 +18,10 @@ def main():
     print( "\t\033[31mRed")
     print( "\t\033[32mGreen")
     print( "\t\033[34mBlue", "\033[0m")
+     # __return__ 2
     return 0
-    return __BLOCK_DO_NOTHING___, None
+    return __BLOCK_DO_NOTHING___, None # default return
 
 
 if __name__ == '__main__':
-	main()
+    main()
