@@ -236,21 +236,24 @@ static void merge_scopes(tlhash_t *dest, tlhash_t *src, uint64_t seq_offset)
     free(symbs);
 }
 
-/* Traverse the tree, assumes that local variables
- * and parameters are * initialized already. */
-static void bind_recursive(ir_ctx_t *ctx, symbol_t *function, node_t *root, uint64_t *seq)
+/* Traverse the tree, assumes that parameters are initialized, but that locals ARE NOT. */
+static void bind_recursive(ir_ctx_t *ctx, symbol_t *function, node_t *root, uint64_t *seq, uint32_t depth)
 {
     symbol_t *temp = NULL;
     tlhash_t *temp_tbl = NULL;
-    tlhash_t *temp_tbl2 = NULL;
+    //tlhash_t *temp_tbl2 = NULL;
 
     switch (root->type) {
         case BLOCK:
             printf("Pushing scope\n");
             /* Push new scope. */
-            temp_tbl = function->locals = xcalloc(1, sizeof(*temp_tbl));
-            assert(!tlhash_init(temp_tbl, IR_LOCALS_TLHASH_BUCKETS));
-            VEC_PUSH(&ctx->scopes, tlhash_t_ptr, temp_tbl);
+            if (depth == 0) {
+                temp_tbl = function->locals;
+            } else {
+                temp_tbl = xcalloc(1, sizeof(*temp_tbl));
+                assert(!tlhash_init(temp_tbl, IR_LOCALS_TLHASH_BUCKETS));
+                VEC_PUSH(&ctx->scopes, tlhash_t_ptr, temp_tbl);
+            }
 
             for (uint64_t i = 0; i < root->n_children; i++) {
                 if (root->children[i]->type == VARIABLE_LIST || root->children[i]->type == DECLARATION_LIST) {
@@ -261,32 +264,20 @@ static void bind_recursive(ir_ctx_t *ctx, symbol_t *function, node_t *root, uint
                         symbol_t *symb = ir_symbol_new(ident->data_char_ptr,
                                                        strlen(ident->data_char_ptr),
                                                        SYM_LOCAL_VAR, ident, (*seq)++, 0, NULL); // NOTE: seq.
-                        printf("BLOCK_DECLARATION: %s, %p\n", symb->name, VEC_PEEK(&ctx->scopes, tlhash_t_ptr));
+                        //printf("BLOCK_DECLARATION: %s, %p\n", symb->name, VEC_PEEK(&ctx->scopes, tlhash_t_ptr));
                         IR_INSERT_LOCAL_SYMBOL(VEC_PEEK(&ctx->scopes, tlhash_t_ptr), symb);
                         symb->node->entry = function;
                     }
                 }
                 /* Recurse with the new scope as the current scope. */
-                bind_recursive(ctx, function, root->children[i], seq);
+                bind_recursive(ctx, function, root->children[i], seq, depth+1);
             }
 
-            print_symtable(VEC_PEEK(&ctx->scopes, tlhash_t_ptr));
+            //print_symtable(VEC_PEEK(&ctx->scopes, tlhash_t_ptr));
 
             /* Pop the new scope. */
-            assert(temp_tbl == VEC_POP(&ctx->scopes, tlhash_t_ptr));
-            printf("Popping scope\n");
-
-            temp_tbl2 = VEC_PEEK(&ctx->scopes, tlhash_t_ptr);
-            /* Merge scopes. */
-            //if (VEC_LEN(&ctx->scopes) == 3) {
-            //    // Handle function parameters when merging with locals.
-            //   merge_scopes(temp_tbl2, temp_tbl, -function->nparms);
-            //} else {
-            //    merge_scopes(temp_tbl2, temp_tbl, 0);
-            //}
-            //printf("Merged scopes: %lu [%p] into %lu [%p], LEN:%lu\n", VEC_LEN(&ctx->scopes) + 1, temp_tbl, VEC_LEN(&ctx->scopes),  VEC_PEEK(&ctx->scopes, tlhash_t_ptr), VEC_LEN(&ctx->scopes));
-
-            print_symtable(VEC_PEEK(&ctx->scopes, tlhash_t_ptr));
+            if (depth != 0) assert(temp_tbl == VEC_POP(&ctx->scopes, tlhash_t_ptr));
+            //printf("Popping scope\n");
 
             /* TODO: Destroy scope. */
             temp_tbl = NULL;
@@ -306,13 +297,13 @@ static void bind_recursive(ir_ctx_t *ctx, symbol_t *function, node_t *root, uint
         case STRING_DATA:
             root->entry_strings_index = VEC_LEN(&ctx->strings);
             VEC_PUSH(&ctx->strings, ir_str, root->data_char_ptr);
-            printf("Binding string: %s => %lu\n", root->data_char_ptr, root->entry_strings_index);
+            //printf("Binding string: %s => %lu\n", root->data_char_ptr, root->entry_strings_index);
             break;
 
         default:
             // Recurse.
             for (uint64_t i = 0; i < root->n_children; i++) {
-                bind_recursive(ctx, function, root->children[i], seq);
+                bind_recursive(ctx, function, root->children[i], seq, depth+1);
             }
     }
 
@@ -336,7 +327,7 @@ void ir_bind_names(ir_ctx_t *ctx, symbol_t *function, node_t *root)
                                        SYM_PARAMETER, params->children[i], i, 0, NULL);
         printf("ir_bind. PARAMS..: inserting %s\n", symb->name);
         IR_INSERT_FUNC_LOCAL_SYMBOL(function, symb);
-        symb->node->entry = symb;
+        //symb->node->entry = symb;
     }
 
     /* Push scopes. */
@@ -346,44 +337,18 @@ void ir_bind_names(ir_ctx_t *ctx, symbol_t *function, node_t *root)
     VEC_PUSH(&ctx->scopes, tlhash_t_ptr, function->locals);
     printf("After 2 push:len:%lu\n", VEC_LEN(&ctx->scopes));
 
-#if 0
-    ///* Locals. */
-    //if (root->children[2]->type == BLOCK) {
-    //    const node_t *block = root->children[2];
-    //    for (uint64_t i = 0; i < block->n_children; i++) {
-    //        if (block->children[i]->type == VARIABLE_LIST) {
-    //            const node_t *node = block->children[i];
-    //            if (node->type != VARIABLE_LIST) continue;
-
-    //            for (uint64_t i = 0; i < node->n_children; i++) {
-    //                node_t *ident = node->children[i];
-    //                assert(ident->type == IDENTIFIER_DATA);
-
-    //                symbol_t *symb = ir_symbol_new(ident->data_char_ptr,
-    //                                               strlen(ident->data_char_ptr),
-    //                                               SYM_LOCAL_VAR, ident, i, 0, NULL);
-    //                printf("ir_bind...: inserting %s\n", symb->name);
-    //                IR_INSERT_LOCAL_SYMBOL(function, symb);
-    //                symb->node->entry = symb;
-    //            }
-    //        }
-    //    }
-    //}
-#endif
-
     uint64_t local_seq = 0;
-    bind_recursive(ctx, function, root, &local_seq);
-
+    bind_recursive(ctx, function, root->children[2], &local_seq, 0);
 
     //VEC_POP(&ctx->scopes, tlhash_t_ptr);
-    print_symtable(VEC_PEEK(&ctx->scopes, tlhash_t_ptr));
+    //print_symtable(VEC_PEEK(&ctx->scopes, tlhash_t_ptr));
     //printf("%p == %p\n", VEC_POP(&ctx->scopes, tlhash_t_ptr), function->locals);
     //printf("%p == %p\n", VEC_POP(&ctx->scopes, tlhash_t_ptr), &ctx->names);
     VEC_POP(&ctx->scopes, tlhash_t_ptr); // function locals
     VEC_POP(&ctx->scopes, tlhash_t_ptr); // global names
 
-    printf("VEC_LEN(SCOPES) = %lu\n", VEC_LEN(&ctx->scopes));
-    print_symtable(function->locals);
+    //printf("VEC_LEN(SCOPES) = %lu\n", VEC_LEN(&ctx->scopes));
+    //print_symtable(function->locals);
 
     printf("seq: %lu\n", local_seq);
     printf("=== END OF BIND NAMES: %s\n", function->name);
@@ -437,10 +402,10 @@ void ir_print_bindings(ir_ctx_t *ctx, node_t *root)
     if (root == NULL) return;
     else if (root->entry != NULL && root->type != STRING_DATA) {
         switch (root->entry->type) {
-            case SYM_GLOBAL_VAR: printf("Linked global var '%s' (line:%d)\n",      root->entry->name, root->line); break;
-            case SYM_FUNCTION:   printf("Linked function %zu ('%s') (line:%d)\n",  root->entry->seq, root->entry->name, root->line); break;
-            case SYM_PARAMETER:  printf("Linked parameter %zu ('%s') (line:%d)\n", root->entry->seq, root->entry->name, root->line); break;
-            case SYM_LOCAL_VAR:  printf("Linked local var %zu ('%s') (line:%d)\n", root->entry->seq, root->entry->name, root->line); break;
+            case SYM_GLOBAL_VAR: printf("Linked global var '%s' (line:%d,col:%d:)\n",      root->entry->name, root->line, root->col); break;
+            case SYM_FUNCTION:   printf("Linked function %zu ('%s') (line:%d,col:%d)\n",  root->entry->seq, root->entry->name, root->line, root->col); break;
+            case SYM_PARAMETER:  printf("Linked parameter %zu ('%s') (line:%d,col:%d)\n", root->entry->seq, root->entry->name, root->line, root->col); break;
+            case SYM_LOCAL_VAR:  printf("Linked local var %zu ('%s') (line:%d,col:%d)\n", root->entry->seq, root->entry->name, root->line, root->col); break;
         }
     } else if (root->type == STRING_DATA) {
         //size_t string_index = *((size_t *)root->data);

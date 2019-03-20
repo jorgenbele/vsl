@@ -12,7 +12,7 @@ struct symbol; /* Forward decl. */
 typedef struct node {
     enum node_type type;
 
-    int line, col; /* Currently unused. */
+    int line, col; /* Line: <1, inf>, col: <1, inf>, col is at the end. */
 
     /* Changed to use union instad of
      * potentially dangerous casting. */

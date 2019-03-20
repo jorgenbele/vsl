@@ -6,18 +6,17 @@
 #define SAVE_INT sscanf(yytext, "%" SCNdit, &yylval.integer)
 
 
-int yycolumn = 1;
-void set_yycolumn(int val) {
-    yycolumn = val;
-    yylloc.first_column = yycolumn;
-    yylloc.last_column = yycolumn + yyleng - 1;
-}
+int yycolumn = 0;
 
-#define YY_USER_ACTION { \
-    yylloc.first_line = yylloc.last_line = yylineno; \
-    set_yycolumn(yycolumn); \
-    yycolumn += yyleng; \
-}
+/* This is executed before every action. */
+#define YY_USER_ACTION                                                   \
+    start_line = prev_yylineno; start_column = yycolumn;                \
+    if (yylineno == prev_yylineno) yycolumn += yyleng;                  \
+    else {                                                              \
+        for (yycolumn = 1; yytext[yyleng - yycolumn] != '\n'; ++yycolumn) {} \
+        yycolumn--;                                                     \
+        prev_yylineno = yylineno;                                       \
+  }
 
 
 %}
@@ -26,6 +25,9 @@ void set_yycolumn(int val) {
 %option yylineno
 
 %%
+   int start_line, start_column;
+   int prev_yylineno = yylineno;
+
 [\t\n\r\v ]*           {} /* whitespace is ignored */
 \"([^\n\"]|\\\")*\"    { SAVE_STR; return STRING; } /* accepts \x where x is a double quote */
 [0-9]+                 { SAVE_INT; return NUMBER; }
