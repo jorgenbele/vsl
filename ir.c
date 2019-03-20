@@ -16,8 +16,10 @@
 
 /* Define vector functions for ir_str. */
 DEF_VEC_FUNCS(ir_str, ir_str, NULL);
-
+DEF_VEC_FUNCS(symbol_t_ptr, symbol_t_ptr, NULL);
 DEF_VEC_FUNCS(tlhash_t_ptr, tlhash_t_ptr, NULL);
+
+#define PUSH_SYMBOL(ctx, sym) VEC_PUSH(&(ctx)->symbols, symbol_t_ptr, sym)
 
 /* ir_ctx_init: Initialize an ir context. Must be done before use. */
 void ir_ctx_init(ir_ctx_t *ctx)
@@ -27,6 +29,7 @@ void ir_ctx_init(ir_ctx_t *ctx)
 
     VEC_INIT(&ctx->strings, ir_str);
     VEC_INIT(&ctx->scopes, tlhash_t_ptr);
+    VEC_INIT(&ctx->symbols, symbol_t_ptr);
 
     ctx->temp = NULL;
     ctx->temp_size = 0;
@@ -53,7 +56,13 @@ void ir_ctx_destroy(ir_ctx_t *ctx)
     assert(!tlhash_finalize(&ctx->names));
 
     VEC_DESTROY(&ctx->strings, ir_str);
-    VEC_INIT(&ctx->scopes, tlhash_t_ptr);
+    VEC_DESTROY(&ctx->scopes, tlhash_t_ptr);
+
+    while (!VEC_ERROR(&ctx->symbols) && VEC_LEN(&ctx->symbols) > 0) {
+        symbol_t *symb = VEC_POP(&ctx->symbols, symbol_t_ptr);
+        free(symb);
+    }
+    VEC_DESTROY(&ctx->symbols, symbol_t_ptr);
 
     if (ctx->temp) free(ctx->temp);
 }
@@ -89,7 +98,7 @@ void ir_symbol_destroy(symbol_t *symb)
         tlhash_finalize(symb->locals);
         free(symb->locals);
     }
-    free(symb);
+    //free(symb);
 }
 
 void ir_destroy_symtab(ir_ctx_t *ctx)
@@ -130,12 +139,13 @@ inline static void add_function_symbol(ir_ctx_t *ctx, node_t *func_node)
     symbol_t *symb = ir_symbol_new(ident->data_char_ptr,
                                    strlen(ident->data_char_ptr),
                                    SYM_FUNCTION, func_node, ctx->seq++, params->n_children, NULL);
+    PUSH_SYMBOL(ctx, symb);
     IR_INSERT_GLOBAL_SYMBOL(ctx, symb);
 }
 
 inline static void add_global_variable_list_symbol(ir_ctx_t *ctx, node_t *node)
 {
-    printf("add_global_variable_list_symbol: type of child 1: %s, children: %lu\n", node_type_to_string[node->type], node->n_children);
+    //printf("add_global_variable_list_symbol: type of child 1: %s, children: %lu\n", node_type_to_string[node->type], node->n_children);
     assert(node->type == VARIABLE_LIST);
 
     for (uint64_t i = 0; i < node->n_children; i++) {
@@ -145,7 +155,9 @@ inline static void add_global_variable_list_symbol(ir_ctx_t *ctx, node_t *node)
         symbol_t *symb = ir_symbol_new(ident->data_char_ptr,
                                        strlen(ident->data_char_ptr),
                                        SYM_GLOBAL_VAR, node, -1, 0, NULL);
+        PUSH_SYMBOL(ctx, symb);
         IR_INSERT_GLOBAL_SYMBOL(ctx, symb);
+
     }
 }
 
@@ -156,22 +168,18 @@ void ir_find_globals(ir_ctx_t *ctx, node_t *root)
     assert(root->n_children == 1);
     assert(root->type == PROGRAM);
     node_t *gl = root->children[0];
-    printf("ir_find_globals: type of gl: %s, children: %lu\n", node_type_to_string[gl->type], gl->n_children);
+    //printf("ir_find_globals: type of gl: %s, children: %lu\n", node_type_to_string[gl->type], gl->n_children);
 
     for (uint64_t i = 0; i < gl->n_children; i++) {
         node_t *child = gl->children[i];
         if (child->type == FUNCTION) {
             add_function_symbol(ctx, child);
-            /* XXX DECLARATION or DECLARATION_LIST? */
 
             /* NOTE: In my version DECLARATION_LIST is promoted to VARIABLE_LIST,
              * but since there makes no sense to have VARIABLE_LISTs which are not
              * DECLARATIONs then we know that this is a declaration list. */
         } else if (child->type == VARIABLE_LIST) {
             add_global_variable_list_symbol(ctx, child);
-            // TODO.
-            //symbol_t *symb = ir_symbol_new(child->data_char_ptr, strlen(child->data_char_ptr), SYM_GLOBAL_VAR, 0, 0, NULL);
-            //IR_INSERT_GLOBAL_SYMBOL(ctx, ir_symbol_new(child->data_char_ptr, strlen(child->data_char_ptr), SYM_FUNCTION, 0, 0, NULL));
         }
     }
 }
@@ -193,12 +201,12 @@ static void print_symtable(tlhash_t *t)
     puts("====== END OF SYM TABLE =====");
 }
 
+    //printf("Inserting symbol (function): %s\n", (symb)->name);
 #define IR_INSERT_FUNC_LOCAL_SYMBOL(func, symb) \
-    printf("Inserting symbol (function): %s\n", (symb)->name); \
     assert(!tlhash_insert((func)->locals, (symb)->name, (symb)->name_len, (symb)))
 
+    //printf("Inserting symbol (block local) %s\n", (symb)->name);
 #define IR_INSERT_LOCAL_SYMBOL(locals, symb) \
-    printf("Inserting symbol (block local) %s\n", (symb)->name); \
     assert(!tlhash_insert(locals, (symb)->name, (symb)->name_len, (symb)))
 
 static symbol_t *lookup_symb(ir_ctx_t *ctx, const char *key, size_t key_len)
@@ -211,7 +219,7 @@ static symbol_t *lookup_symb(ir_ctx_t *ctx, const char *key, size_t key_len)
         symbol_t *out = NULL;
         //printf("looking up symbol: %s, i: %lu\n", key, i);
         if (!tlhash_lookup(locals, (void *) key, key_len, (void **) &out)) {
-            printf("looking up symbol: found %s at i: %lu\n", key, i);
+            //printf("looking up symbol: found %s at i: %lu\n", key, i);
             return out;
         }
     }
@@ -245,9 +253,10 @@ static void bind_recursive(ir_ctx_t *ctx, symbol_t *function, node_t *root, uint
 
     switch (root->type) {
         case BLOCK:
-            printf("Pushing scope\n");
+            //printf("Pushing scope\n");
             /* Push new scope. */
             if (depth == 0) {
+                /* Special case: want to push to the function scope, which is when depth = 0. */
                 temp_tbl = function->locals;
             } else {
                 temp_tbl = xcalloc(1, sizeof(*temp_tbl));
@@ -260,28 +269,27 @@ static void bind_recursive(ir_ctx_t *ctx, symbol_t *function, node_t *root, uint
                     for (uint64_t k = 0; k < root->children[i]->n_children; k++) {
                         node_t *ident = root->children[i]->children[k];
                         assert(ident->type == IDENTIFIER_DATA);
-
-                        symbol_t *symb = ir_symbol_new(ident->data_char_ptr,
-                                                       strlen(ident->data_char_ptr),
-                                                       SYM_LOCAL_VAR, ident, (*seq)++, 0, NULL); // NOTE: seq.
-                        //printf("BLOCK_DECLARATION: %s, %p\n", symb->name, VEC_PEEK(&ctx->scopes, tlhash_t_ptr));
+                        symbol_t *symb = ir_symbol_new(ident->data_char_ptr, strlen(ident->data_char_ptr), SYM_LOCAL_VAR, ident, *seq, 0, NULL);
+                        PUSH_SYMBOL(ctx, symb);
+                        (*seq)++;
                         IR_INSERT_LOCAL_SYMBOL(VEC_PEEK(&ctx->scopes, tlhash_t_ptr), symb);
-                        symb->node->entry = function;
+                        //symb->node->entry = function;
                     }
+                    continue;
                 }
                 /* Recurse with the new scope as the current scope. */
                 bind_recursive(ctx, function, root->children[i], seq, depth+1);
             }
-
-            //print_symtable(VEC_PEEK(&ctx->scopes, tlhash_t_ptr));
-
             /* Pop the new scope. */
-            if (depth != 0) assert(temp_tbl == VEC_POP(&ctx->scopes, tlhash_t_ptr));
-            //printf("Popping scope\n");
-
-            /* TODO: Destroy scope. */
+            /* Special case: want to push to the function scope, which is when depth = 0. */
+            if (depth != 0) {
+                //printf("Popping scope\n");
+                assert(temp_tbl == VEC_POP(&ctx->scopes, tlhash_t_ptr));
+                //DESTROY_TLHASH_SYMBS(temp_tbl);
+                tlhash_finalize(temp_tbl);
+                free(temp_tbl);
+            }
             temp_tbl = NULL;
-
             break;
 
         case IDENTIFIER_DATA:
@@ -289,7 +297,7 @@ static void bind_recursive(ir_ctx_t *ctx, symbol_t *function, node_t *root, uint
                 root->entry = temp;
             } else {
                 /* Unresolved symbol. */
-                fprintf(stderr, "QUITTING: Unresolvable symbol: %s\n", root->data_char_ptr);
+                fprintf(stderr, "QUITTING: Unresolvable symbol `%s` at %d:%d\n", root->data_char_ptr, root->line, root->col);
                 assert(0);
             }
             break;
@@ -311,7 +319,7 @@ static void bind_recursive(ir_ctx_t *ctx, symbol_t *function, node_t *root, uint
 
 void ir_bind_names(ir_ctx_t *ctx, symbol_t *function, node_t *root)
 {
-    printf("=== BIND NAMES: %s\n", function->name);
+    //printf("=== BIND NAMES: %s\n", function->name);
 
     assert(function->locals == NULL);
     function->locals = xcalloc(1, sizeof(*function->locals));
@@ -325,17 +333,18 @@ void ir_bind_names(ir_ctx_t *ctx, symbol_t *function, node_t *root)
         symbol_t *symb = ir_symbol_new(params->children[i]->data_char_ptr,
                                        strlen(params->children[i]->data_char_ptr),
                                        SYM_PARAMETER, params->children[i], i, 0, NULL);
-        printf("ir_bind. PARAMS..: inserting %s\n", symb->name);
+        PUSH_SYMBOL(ctx, symb);
+        //printf("ir_bind. PARAMS..: inserting %s\n", symb->name);
         IR_INSERT_FUNC_LOCAL_SYMBOL(function, symb);
         //symb->node->entry = symb;
     }
 
     /* Push scopes. */
-    printf("Pushing: %p, len:%lu\n", &ctx->names, VEC_LEN(&ctx->scopes));
+    //printf("Pushing: %p, len:%lu\n", &ctx->names, VEC_LEN(&ctx->scopes));
     VEC_PUSH(&ctx->scopes, tlhash_t_ptr, &ctx->names);
-    printf("Pushing: %p, len:%lu\n", function->locals, VEC_LEN(&ctx->scopes));
+    //printf("Pushing: %p, len:%lu\n", function->locals, VEC_LEN(&ctx->scopes));
     VEC_PUSH(&ctx->scopes, tlhash_t_ptr, function->locals);
-    printf("After 2 push:len:%lu\n", VEC_LEN(&ctx->scopes));
+    //printf("After 2 push:len:%lu\n", VEC_LEN(&ctx->scopes));
 
     uint64_t local_seq = 0;
     bind_recursive(ctx, function, root->children[2], &local_seq, 0);
@@ -350,8 +359,8 @@ void ir_bind_names(ir_ctx_t *ctx, symbol_t *function, node_t *root)
     //printf("VEC_LEN(SCOPES) = %lu\n", VEC_LEN(&ctx->scopes));
     //print_symtable(function->locals);
 
-    printf("seq: %lu\n", local_seq);
-    printf("=== END OF BIND NAMES: %s\n", function->name);
+    //printf("seq: %lu\n", local_seq);
+    //printf("=== END OF BIND NAMES: %s\n", function->name);
 }
 
 void ir_print_symtab(ir_ctx_t *ctx, node_t *root)

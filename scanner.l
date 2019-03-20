@@ -9,6 +9,7 @@
 int yycolumn = 0;
 
 /* This is executed before every action. */
+/* Taken from: https://stackoverflow.com/questions/26854374/how-do-i-use-yy-bs-lineno-and-yy-bs-column-in-flex */
 #define YY_USER_ACTION                                                   \
     start_line = prev_yylineno; start_column = yycolumn;                \
     if (yylineno == prev_yylineno) yycolumn += yyleng;                  \

@@ -528,6 +528,7 @@ char *yytext_ptr;
 int yycolumn = 0;
 
 /* This is executed before every action. */
+/* Taken from: https://stackoverflow.com/questions/26854374/how-do-i-use-yy-bs-lineno-and-yy-bs-column-in-flex */
 #define YY_USER_ACTION                                                   \
     start_line = prev_yylineno; start_column = yycolumn;                \
     if (yylineno == prev_yylineno) yycolumn += yyleng;                  \
@@ -538,8 +539,8 @@ int yycolumn = 0;
   }
 
 
-#line 541 "<stdout>"
 #line 542 "<stdout>"
+#line 543 "<stdout>"
 
 #define INITIAL 0
 
@@ -756,13 +757,13 @@ YY_DECL
 		}
 
 	{
-#line 27 "scanner.l"
+#line 28 "scanner.l"
 
-#line 29 "scanner.l"
+#line 30 "scanner.l"
    int start_line, start_column;
    int prev_yylineno = yylineno;
 
-#line 765 "<stdout>"
+#line 766 "<stdout>"
 
 	while ( /*CONSTCOND*/1 )		/* loops until end-of-file is reached */
 		{
@@ -832,106 +833,106 @@ do_action:	/* This label is used only to access EOF actions. */
 case 1:
 /* rule 1 can match eol */
 YY_RULE_SETUP
-#line 32 "scanner.l"
+#line 33 "scanner.l"
 {} /* whitespace is ignored */
 	YY_BREAK
 case 2:
 YY_RULE_SETUP
-#line 33 "scanner.l"
+#line 34 "scanner.l"
 { SAVE_STR; return STRING; } /* accepts \x where x is a double quote */
 	YY_BREAK
 case 3:
 YY_RULE_SETUP
-#line 34 "scanner.l"
+#line 35 "scanner.l"
 { SAVE_INT; return NUMBER; }
 	YY_BREAK
 case 4:
 YY_RULE_SETUP
-#line 36 "scanner.l"
+#line 37 "scanner.l"
 {} /* comments are ignored */
 	YY_BREAK
 case 5:
 /* rule 5 can match eol */
 YY_RULE_SETUP
-#line 38 "scanner.l"
+#line 39 "scanner.l"
 { SAVE_STR; return FUNCTION_COMMENT_PARSER; } /* comments are ignored */
 	YY_BREAK
 case 6:
 YY_RULE_SETUP
-#line 40 "scanner.l"
+#line 41 "scanner.l"
 { return FUNC;         }
 	YY_BREAK
 case 7:
 YY_RULE_SETUP
-#line 41 "scanner.l"
+#line 42 "scanner.l"
 { return OPENBLOCK;    }
 	YY_BREAK
 case 8:
 YY_RULE_SETUP
-#line 42 "scanner.l"
+#line 43 "scanner.l"
 { return CLOSEBLOCK;   }
 	YY_BREAK
 case 9:
 YY_RULE_SETUP
-#line 43 "scanner.l"
+#line 44 "scanner.l"
 { return RETURN;       }
 	YY_BREAK
 case 10:
 YY_RULE_SETUP
-#line 44 "scanner.l"
+#line 45 "scanner.l"
 { return PRINT;        }
 	YY_BREAK
 case 11:
 YY_RULE_SETUP
-#line 45 "scanner.l"
+#line 46 "scanner.l"
 { return IF;           }
 	YY_BREAK
 case 12:
 YY_RULE_SETUP
-#line 46 "scanner.l"
+#line 47 "scanner.l"
 { return THEN;         }
 	YY_BREAK
 case 13:
 YY_RULE_SETUP
-#line 47 "scanner.l"
+#line 48 "scanner.l"
 { return ELSE;         }
 	YY_BREAK
 case 14:
 YY_RULE_SETUP
-#line 48 "scanner.l"
+#line 49 "scanner.l"
 { return WHILE;        }
 	YY_BREAK
 case 15:
 YY_RULE_SETUP
-#line 49 "scanner.l"
+#line 50 "scanner.l"
 { return DO;           }
 	YY_BREAK
 case 16:
 YY_RULE_SETUP
-#line 50 "scanner.l"
+#line 51 "scanner.l"
 { return VAR;          }
 	YY_BREAK
 case 17:
 YY_RULE_SETUP
-#line 51 "scanner.l"
+#line 52 "scanner.l"
 { return CONTINUE;     } /* NOT SPECIFIED IN LIST!! */
 	YY_BREAK
 case 18:
 YY_RULE_SETUP
-#line 52 "scanner.l"
+#line 53 "scanner.l"
 { SAVE_STR; return IDENTIFIER; }
 	YY_BREAK
 case 19:
 YY_RULE_SETUP
-#line 53 "scanner.l"
+#line 54 "scanner.l"
 { return yytext[0];    }
 	YY_BREAK
 case 20:
 YY_RULE_SETUP
-#line 54 "scanner.l"
+#line 55 "scanner.l"
 ECHO;
 	YY_BREAK
-#line 934 "<stdout>"
+#line 935 "<stdout>"
 case YY_STATE_EOF(INITIAL):
 	yyterminate();
 
@@ -1948,6 +1949,6 @@ void yyfree (void * ptr )
 
 #define YYTABLES_NAME "yytables"
 
-#line 54 "scanner.l"
+#line 55 "scanner.l"
 
 
