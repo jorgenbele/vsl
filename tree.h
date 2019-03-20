@@ -14,4 +14,8 @@ void tree_destroy(node_t *discard);
 void tree_simplify(node_t *root);
 
 
+typedef int (*tree_extract_function_t)(const node_t *node, int depth);
+int tree_extract_by(node_t *root, tree_extract_function_t do_extract_func, VEC(node_t_ptr) *collected);
+
+
 #endif // __TREE_H_

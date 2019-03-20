@@ -176,6 +176,46 @@ static void flatten(node_t *root, vec_node_t_ptr *abandoned)
     }
 }
 
+/* replace_singles:
+ *    Used to fix mistake; replace empty PARAMETER_LIST
+ *    (which wont merge to VARIABLE_LIST) with VARIABLE_LIST.
+ */
+static void replace_singles(node_t *root, vec_node_t_ptr *abandoned)
+{
+    if (!root) return;
+
+    for (size_t i = 0; i < root->n_children; i++)
+        replace_singles(root->children[i], abandoned);
+
+    if (!node_is_list[root->type] || root->n_children > 1) {
+        /* Root node is not a list, or not a single, so nothing more to do. */
+        return;
+    }
+
+    if (root->type == PARAMETER_LIST) {
+        root->type = VARIABLE_LIST;
+    }
+}
+
+inline static int extract_by(node_t *root, tree_extract_function_t extract_func, VEC(node_t_ptr) *c, int depth)
+{
+    if (extract_func(root, depth)) {
+        VEC_PUSH(c, node_t_ptr, root);
+        return 0;
+    }
+
+    for (uint64_t i = 0; i < root->n_children; i++)
+        extract_by(root->children[i], extract_func, c, depth++);
+
+    return 0;
+}
+
+int tree_extract_by(node_t *root, tree_extract_function_t do_extract_func, VEC(node_t_ptr) *collected)
+{
+    return extract_by(root, do_extract_func, collected, 0);
+}
+
+
 /* NOTE: Changed order of parameters */
 void tree_simplify(node_t *root)
 {
@@ -186,6 +226,7 @@ void tree_simplify(node_t *root)
     flatten(root, &abandoned);
     eliminate_inter(root, &abandoned);
     eval_const_expr(root, &abandoned);
+    replace_singles(root, &abandoned);
 
     /* Destroy the abandoned nodes. */
     while (VEC_LEN(&abandoned) >= 1 && !VEC_ERROR(&abandoned))

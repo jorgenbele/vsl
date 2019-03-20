@@ -11,7 +11,7 @@
 DEF_VEC_FUNCS(node_t_ptr, node_t_ptr, NULL);
 
 /* node_print(): Recursively print the tree from 'root'. */
-void node_print(node_t *root, int nesting)
+void node_print(const node_t *root, int nesting)
 {
     if (root != NULL) {
         /* Print the type of node indented by the nesting level */
@@ -68,6 +68,8 @@ void node_print(node_t *root, int nesting)
         n->comment = NULL;  /* Is set by the parser. */             \
                                                                     \
         n->children = xcalloc(n_children, sizeof(*n->children));    \
+                                                                    \
+        n->entry_max = 0;                                           \
                                                                     \
         for (uint64_t i = 0; i < n_children; i++) {                 \
             n->children[i] = va_arg(ap, node_t *);                  \

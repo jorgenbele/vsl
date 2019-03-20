@@ -9,21 +9,10 @@ LDLIBS+=-lc
 #CC=musl-clang
 CC=clang
 
-.PHONEY: main vsl_simplify vsl2py vsl_recreate clean purge rebuild
+.PHONEY: print_symtab clean purge rebuild
 
-all: main vsl_simplify vsl2py vsl_recreate
-
-#vsl_simplify: vsl_simplify.c parser.o scanner.o nodetypes.o node.o utils.o tree.o node_python_src.o
-
-vsl_simplify: vsl_simplify.c parser.c scanner.c nodetypes.c node.c utils.c tree.c node_python_src.c
-# Requires recompilation as it uses different compile-time flags.
-	clang -o vsl_simplify vsl_simplify.c parser.c scanner.c nodetypes.c node.c utils.c tree.c node_python_src.c -DUSE_TREE_CORRECT_RULES
-
-vsl2py: vsl2py.c parser.o scanner.o nodetypes.o node.o utils.o tree.o node_python_src.o
-
-main: main.c parser.o scanner.o nodetypes.o node.o utils.o tree.o node_src.o node_python_src.o #node_source.o
-
-vsl_recreate: vsl_recreate.c parser.o scanner.o nodetypes.o node.o utils.o tree.o node_src.o
+all: print_symtab
+print_symtab: print_symtab.c parser.o scanner.o nodetypes.o node.o utils.o tree.o node_src.o ir.o tlhash.o 
 
 y.tab.h: parser.c
 scanner.c: y.tab.h scanner.l
@@ -32,6 +21,6 @@ clean:
 	-rm -f parser.c scanner.c *.tab.* *.o
 
 purge: clean
-	-rm -f main vsl_simplify vsl2py vsl_recreate
+	-rm -f print_symtab
 
-rebuild: clean purge main vsl_simplify vsl2py vsl_recreate y.tab.h
+rebuild: clean purge print_symtab y.tab.h
