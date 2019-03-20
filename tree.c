@@ -41,7 +41,7 @@ static void eval_const_expr(node_t *root, vec_node_t_ptr *abandoned)
         else if (*root->data_char_ptr == '~') res = EVAL_CONST_EXPR1(~, left);
     } else {
         if (root->n_children != 2) {
-            debug("n_children has to be 1 or 2 for const. exprs.!");
+            debug("n_children has to be 1 or 2 for const. exprs.!: [%d:%d]", root->line, root->col);
             exit(1);
         }
 
@@ -52,7 +52,7 @@ static void eval_const_expr(node_t *root, vec_node_t_ptr *abandoned)
             case '*': { res = EVAL_CONST_EXPR2(left, *, right); break; }
             case '/': { res = EVAL_CONST_EXPR2(left, /, right); break; }
             default: {
-                debug("Unknown const.expr op: %c", *root->data_char_ptr);
+                debug("Unknown const.expr op: %c [%d:%d]", *root->data_char_ptr,  root->line, root->col);
                 exit(1);
                 break;
             }

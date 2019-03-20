@@ -17,10 +17,6 @@ int main(int argc, char *argv[])
 
     tree_simplify(ast_g_root);
 
-    //printf("====================\n");
-    //node_print(ast_g_root, 0);
-    //printf("====================\n");
-
     ir_ctx_t ctx;
     ir_ctx_init(&ctx);
 
