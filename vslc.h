@@ -19,7 +19,7 @@ extern YYLTYPE yylloc;
 extern int yylex (void);
 extern char yytext[];
 
-extern node_t *root;
+extern node_t *ast_g_root; /* Root of ast. */
 
 
 #endif // __VSLC_H_

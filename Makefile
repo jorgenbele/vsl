@@ -13,7 +13,11 @@ CC=clang
 
 all: main vsl_simplify vsl2py vsl_recreate
 
-vsl_simplify: vsl_simplify.c parser.o scanner.o nodetypes.o node.o utils.o tree.o node_python_src.o
+#vsl_simplify: vsl_simplify.c parser.o scanner.o nodetypes.o node.o utils.o tree.o node_python_src.o
+
+vsl_simplify: vsl_simplify.c parser.c scanner.c nodetypes.c node.c utils.c tree.c node_python_src.c
+# Requires recompilation as it uses different compile-time flags.
+	clang -o vsl_simplify vsl_simplify.c parser.c scanner.c nodetypes.c node.c utils.c tree.c node_python_src.c -DUSE_TREE_CORRECT_RULES
 
 vsl2py: vsl2py.c parser.o scanner.o nodetypes.o node.o utils.o tree.o node_python_src.o
 

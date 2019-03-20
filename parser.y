@@ -58,7 +58,7 @@
 
 start: program
 
-program:     global_list                        { $$ = root = C1(PROGRAM, NULL, $1); }
+program:     global_list                        { $$ = ast_g_root = C1(PROGRAM, NULL, $1); }
         ;
 
 global_list: global                             { $$ = C1(GLOBAL_LIST, NULL, $1);     }

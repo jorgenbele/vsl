@@ -10,7 +10,7 @@
 typedef struct node {
     enum node_type type;
 
-    int line, col;
+    int line, col; /* Currently unused. */
 
     /* Changed to use union instad of
      * potentially dangerous casting. */

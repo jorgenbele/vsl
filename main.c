@@ -6,7 +6,11 @@
 #include "node_src.h"
 #include "node_python_src.h"
 
-node_t *root;
+#include "tlhash.h"
+#include "ir.h"
+
+ /* Externally used global. */
+node_t *ast_g_root;
 
 int main(int argc, char *argv[])
 {
@@ -17,19 +21,19 @@ int main(int argc, char *argv[])
     //node_print(root, 0);
 
     ////tree_simplify(root, NULL);
-    tree_simplify(root);
+    tree_simplify(ast_g_root);
 
     debug("\n\n==== SIMPLIFIED ====\n");
-    node_print(root, 0);
+    node_print(ast_g_root, 0);
 
     debug("\n\n==== SOURCE ====\n\n");
     src_print_fileno = 2;
-    node_print_source(root);
+    node_print_source(ast_g_root);
 
     //debug("\n\n==== PYTHON SOURCE ====\n\n");
     //python_src_print_fileno = 2;
-    transpile_to_python(root);
+    transpile_to_python(ast_g_root);
 
-    tree_destroy(root);
+    tree_destroy(ast_g_root);
     yylex_destroy();
 }
