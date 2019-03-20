@@ -437,10 +437,10 @@ void ir_print_bindings(ir_ctx_t *ctx, node_t *root)
     if (root == NULL) return;
     else if (root->entry != NULL && root->type != STRING_DATA) {
         switch (root->entry->type) {
-            case SYM_GLOBAL_VAR: printf("Linked global var '%s'\n",      root->entry->name); break;
-            case SYM_FUNCTION:   printf("Linked function %zu ('%s')\n",  root->entry->seq, root->entry->name); break;
-            case SYM_PARAMETER:  printf("Linked parameter %zu ('%s')\n", root->entry->seq, root->entry->name); break;
-            case SYM_LOCAL_VAR:  printf("Linked local var %zu ('%s')\n", root->entry->seq, root->entry->name); break;
+            case SYM_GLOBAL_VAR: printf("Linked global var '%s' (line:%d)\n",      root->entry->name, root->line); break;
+            case SYM_FUNCTION:   printf("Linked function %zu ('%s') (line:%d)\n",  root->entry->seq, root->entry->name, root->line); break;
+            case SYM_PARAMETER:  printf("Linked parameter %zu ('%s') (line:%d)\n", root->entry->seq, root->entry->name, root->line); break;
+            case SYM_LOCAL_VAR:  printf("Linked local var %zu ('%s') (line:%d)\n", root->entry->seq, root->entry->name, root->line); break;
         }
     } else if (root->type == STRING_DATA) {
         //size_t string_index = *((size_t *)root->data);
