@@ -271,7 +271,7 @@ void ir_bind_names(ir_ctx_t *ctx, symbol_t *function, node_t *root)
     assert(root->children[1]->type == VARIABLE_LIST);
     const node_t *params = root->children[1];
     for (uint64_t i = 0; i < params->n_children; i++) {
-        const node_t *child = params->children[i];
+        node_t *child = params->children[i];
         symbol_t *symb = ir_symbol_new(child->data_char_ptr,
                                        strlen(child->data_char_ptr),
                                        SYM_PARAMETER, child, i, 0, NULL);
