@@ -86,8 +86,9 @@ void ir_create_symtab(ir_ctx_t *ctx, node_t *root)
 void ir_symbol_destroy(symbol_t *symb)
 {
     if (symb->type == SYM_FUNCTION && symb->locals) {
-        DESTROY_TLHASH_SYMBS(symb->locals);
-        tlhash_finalize(symb->locals);
+        //DESTROY_TLHASH_SYMBS(symb->locals);
+        //tlhash_finalize(symb->locals);
+        VEC_DESTROY(symb->locals, symbol_t_ptr);
         free(symb->locals);
     }
 }
@@ -105,8 +106,10 @@ void ir_destroy_symtab(ir_ctx_t *ctx)
 #define IR_INSERT_GLOBAL_SYMBOL(ctx, symb)                              \
     tlhash_insert(&(ctx)->names, (symb)->name, (symb)->name_len, (symb))
 
+//inline static symbol_t *ir_symbol_new(char *name, size_t name_len, symtype_t type, node_t *node,
+//                       size_t seq, size_t nparms, tlhash_t *locals)
 inline static symbol_t *ir_symbol_new(char *name, size_t name_len, symtype_t type, node_t *node,
-                       size_t seq, size_t nparms, tlhash_t *locals)
+                       size_t seq, size_t nparms, VEC(symbol_t_ptr) *locals)
 {
     symbol_t *symb = xcalloc(1, sizeof(*symb));
     *symb = (symbol_t){name, name_len, type, node, seq, nparms, locals};
@@ -170,7 +173,9 @@ void ir_find_globals(ir_ctx_t *ctx, node_t *root)
 }
 
 #define IR_INSERT_FUNC_LOCAL_SYMBOL(func, symb) \
-    assert(!tlhash_insert((func)->locals, (symb)->name, (symb)->name_len, (symb)))
+    VEC_PUSH((func)->locals, symbol_t_ptr, symb)
+    //assert(!tlhash_insert((func)->locals, (symb)->name, (symb)->name_len, (symb)))
+    //assert(!tlhash_insert((func)->locals, (symb), sizeof((symb)), (symb)))
 
 #define IR_INSERT_LOCAL_SYMBOL(locals, symb) \
     assert(!tlhash_insert(locals, (symb)->name, (symb)->name_len, (symb)))
@@ -200,14 +205,17 @@ static void bind_recursive(ir_ctx_t *ctx, symbol_t *function, node_t *root, uint
 
     switch (root->type) {
         case BLOCK:
-            if (depth == 0) {
-                /* Special case: want to push to the function scope, which is when depth = 0. */
-                temp_tbl = function->locals;
-            } else {
-                temp_tbl = xcalloc(1, sizeof(*temp_tbl));
-                assert(!tlhash_init(temp_tbl, IR_LOCALS_TLHASH_BUCKETS));
-                VEC_PUSH(&ctx->scopes, tlhash_t_ptr, temp_tbl);
-            }
+            //if (depth == 0) {
+            //    /* Special case: want to push to the function scope, which is when depth = 0. */
+            //    temp_tbl = function->locals;
+            //} else {
+            //    temp_tbl = xcalloc(1, sizeof(*temp_tbl));
+            //    assert(!tlhash_init(temp_tbl, IR_LOCALS_TLHASH_BUCKETS));
+            //    VEC_PUSH(&ctx->scopes, tlhash_t_ptr, temp_tbl);
+            //}
+            temp_tbl = xcalloc(1, sizeof(*temp_tbl));
+            assert(!tlhash_init(temp_tbl, IR_LOCALS_TLHASH_BUCKETS));
+            VEC_PUSH(&ctx->scopes, tlhash_t_ptr, temp_tbl);
 
             for (uint64_t i = 0; i < root->n_children; i++) {
                 if (root->children[i]->type == VARIABLE_LIST || root->children[i]->type == DECLARATION_LIST) {
@@ -218,6 +226,7 @@ static void bind_recursive(ir_ctx_t *ctx, symbol_t *function, node_t *root, uint
                         PUSH_SYMBOL(ctx, symb);
                         (*seq)++;
                         IR_INSERT_LOCAL_SYMBOL(VEC_PEEK(&ctx->scopes, tlhash_t_ptr), symb);
+                        IR_INSERT_FUNC_LOCAL_SYMBOL(function, symb);
                     }
                     continue;
                 }
@@ -225,12 +234,12 @@ static void bind_recursive(ir_ctx_t *ctx, symbol_t *function, node_t *root, uint
                 bind_recursive(ctx, function, root->children[i], seq, depth+1);
             }
             /* Special case: want to push to the function scope, which is when depth = 0. */
-            if (depth != 0) {
+            //if (depth != 0) {
                 /* Pop the new scope. */
                 assert(temp_tbl == VEC_POP(&ctx->scopes, tlhash_t_ptr));
                 tlhash_finalize(temp_tbl);
                 free(temp_tbl);
-            }
+            //}
             temp_tbl = NULL;
             break;
 
@@ -260,7 +269,14 @@ void ir_bind_names(ir_ctx_t *ctx, symbol_t *function, node_t *root)
 {
     assert(function->locals == NULL);
     function->locals = xcalloc(1, sizeof(*function->locals));
-    assert(!tlhash_init(function->locals, IR_LOCALS_TLHASH_BUCKETS));
+    assert(!VEC_INIT(function->locals, symbol_t_ptr));
+
+    tlhash_t function_scope;
+    memset(&function_scope, 0, sizeof(function_scope));
+    assert(!tlhash_init(&function_scope, IR_LOCALS_TLHASH_BUCKETS));
+
+    //function->locals = xcalloc(1, sizeof(*function->locals));
+    //assert(!tlhash_init(function->locals, IR_LOCALS_TLHASH_BUCKETS));
 
     /* Params. */
     assert(root->n_children >= 2);
@@ -272,17 +288,22 @@ void ir_bind_names(ir_ctx_t *ctx, symbol_t *function, node_t *root)
                                        SYM_PARAMETER, params->children[i], i, 0, NULL);
         PUSH_SYMBOL(ctx, symb);
         IR_INSERT_FUNC_LOCAL_SYMBOL(function, symb);
+        IR_INSERT_LOCAL_SYMBOL(&function_scope, symb);
     }
 
     /* Push scopes. */
     VEC_PUSH(&ctx->scopes, tlhash_t_ptr, &ctx->names);
-    VEC_PUSH(&ctx->scopes, tlhash_t_ptr, function->locals);
+    VEC_PUSH(&ctx->scopes, tlhash_t_ptr, &function_scope);
+    //VEC_PUSH(&ctx->scopes, tlhash_t_ptr, function->locals);
 
     uint64_t local_seq = 0;
     bind_recursive(ctx, function, root->children[2], &local_seq, 0);
 
-    VEC_POP(&ctx->scopes, tlhash_t_ptr); // function locals
+    //VEC_POP(&ctx->scopes, tlhash_t_ptr); // function locals
+    VEC_POP(&ctx->scopes, tlhash_t_ptr); // function scope
     VEC_POP(&ctx->scopes, tlhash_t_ptr); // global names
+
+   tlhash_finalize(&function_scope);
 }
 
 void ir_print_symtab(ir_ctx_t *ctx, node_t *root)
@@ -307,15 +328,20 @@ void ir_print_symbols(ir_ctx_t *ctx)
             case SYM_FUNCTION:
                 printf("%s: function %zu:\n", global_list[g]->name, global_list[g]->seq);
                 if (global_list[g]->locals != NULL) {
-                    size_t localsize = tlhash_size(global_list[g]->locals);
-                    printf ("\t%zu local variables, %zu are parameters:\n", localsize, global_list[g]->nparms);
-                    symbol_t *locals[localsize];
-                    tlhash_values(global_list[g]->locals, (void **)locals );
-                    for (size_t i=0; i < localsize; i++) {
-                        printf("\t%s: ", locals[i]->name);
-                        switch(locals[i]->type) {
-                            case SYM_PARAMETER: printf("parameter %zu\n", locals[i]->seq); break;
-                            case SYM_LOCAL_VAR: printf("local var %zu\n", locals[i]->seq); break;
+                    //size_t localsize = tlhash_size(global_list[g]->locals);
+                    //printf ("\t%zu local variables, %zu are parameters:\n", localsize, global_list[g]->nparms);
+                    printf ("\t%zu local variables, %zu are parameters:\n", VEC_LEN(global_list[g]->locals), global_list[g]->nparms);
+                    //symbol_t *locals[localsize];
+                    //tlhash_values(global_list[g]->locals, (void **)locals );
+                    for (size_t i = 0; i < VEC_LEN(global_list[g]->locals); i++) {
+                        //printf("\t%s: ", locals[i]->name);
+                        symbol_t *local = VEC_GET(global_list[g]->locals, symbol_t_ptr, i);
+                        printf("\t%s: ", local->name);
+                        switch(local->type) {
+                            case SYM_PARAMETER: printf("parameter %zu\n", local->seq); break;
+                            case SYM_LOCAL_VAR: printf("local var %zu\n", local->seq); break;
+                            //case SYM_PARAMETER: printf("parameter %zu\n", locals[i]->seq); break;
+                            //case SYM_LOCAL_VAR: printf("local var %zu\n", locals[i]->seq); break;
                             default: continue;
                         }
                     }

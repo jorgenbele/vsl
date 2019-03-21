@@ -9,10 +9,11 @@ LDLIBS+=-lc
 #CC=musl-clang
 CC=clang
 
-.PHONEY: print_symtab clean purge rebuild
+.PHONEY: compiler print_symtab y.tab.h clean purge rebuild
 
-all: print_symtab
-print_symtab: print_symtab.c parser.o scanner.o nodetypes.o node.o utils.o tree.o node_src.o ir.o tlhash.o 
+all: print_symtab compiler
+compiler: compiler.o generator.o parser.o scanner.o nodetypes.o node.o utils.o tree.o node_src.o ir.o tlhash.o
+print_symtab: print_symtab.o parser.o scanner.o nodetypes.o node.o utils.o tree.o node_src.o ir.o tlhash.o
 
 y.tab.h: parser.c
 scanner.c: y.tab.h scanner.l
@@ -23,4 +24,4 @@ clean:
 purge: clean
 	-rm -f print_symtab
 
-rebuild: clean purge print_symtab y.tab.h
+rebuild: clean purge compiler print_symtab y.tab.h

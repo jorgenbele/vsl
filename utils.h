@@ -48,6 +48,8 @@
 
 #endif
 
+#define MIN(x, y) ((x) < (y) ? (x) : (y))
+
 
 void *xmalloc(size_t size);
 void *xcalloc(size_t nmemb, size_t size);
