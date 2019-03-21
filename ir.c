@@ -2,7 +2,9 @@
 
 #include <assert.h>
 #include <stdint.h>
+#include <inttypes.h>
 
+#include "node.h"
 #include "tree.h"
 #include "utils.h"
 
@@ -321,15 +323,15 @@ void ir_print_symbols(ir_ctx_t *ctx)
     for (size_t g = 0; g < n_globals; g++) {
         switch (global_list[g]->type) {
             case SYM_FUNCTION:
-                printf("%s: function %zu:\n", global_list[g]->name, global_list[g]->seq);
+                printf("%s: function %" PRIu64 ":\n", global_list[g]->name, global_list[g]->seq);
                 if (global_list[g]->locals != NULL) {
-                    printf ("\t%zu local variables, %zu are parameters:\n", VEC_LEN(global_list[g]->locals), global_list[g]->nparms);
+                    printf ("\t%zu local variables, %" PRIu64 " are parameters:\n", VEC_LEN(global_list[g]->locals), global_list[g]->nparms);
                     for (size_t i = 0; i < VEC_LEN(global_list[g]->locals); i++) {
                         symbol_t *local = VEC_GET(global_list[g]->locals, symbol_t_ptr, i);
                         printf("\t%s: ", local->name);
                         switch(local->type) {
-                            case SYM_PARAMETER: printf("parameter %zu\n", local->seq); break;
-                            case SYM_LOCAL_VAR: printf("local var %zu\n", local->seq); break;
+                            case SYM_PARAMETER: printf("parameter %" PRIu64 "\n", local->seq); break;
+                            case SYM_LOCAL_VAR: printf("local var %" PRIu64 "\n", local->seq); break;
                             default: continue;
                         }
                     }
@@ -350,21 +352,21 @@ void ir_print_bindings(ir_ctx_t *ctx, node_t *root)
     if (root == NULL) return;
     else if (root->entry != NULL && root->type != STRING_DATA) {
         switch (root->entry->type) {
-            #ifdef SHOW_SYM_LINE_COL
+#ifdef SHOW_SYM_LINE_COL
             case SYM_GLOBAL_VAR: printf("Linked global var '%s' [line:%d,col:%d:]\n",     root->entry->name, root->line, root->col); break;
-            case SYM_FUNCTION:   printf("Linked function %zu ('%s') [line:%d,col:%d]\n",  root->entry->seq, root->entry->name, root->line, root->col); break;
-            case SYM_PARAMETER:  printf("Linked parameter %zu ('%s') [line:%d,col:%d]\n", root->entry->seq, root->entry->name, root->line, root->col); break;
-            case SYM_LOCAL_VAR:  printf("Linked local var %zu ('%s') [line:%d,col:%d]\n", root->entry->seq, root->entry->name, root->line, root->col); break;
-            #else
+            case SYM_FUNCTION:   printf("Linked function %" PRIu64 " ('%s') [line:%d,col:%d]\n",  root->entry->seq, root->entry->name, root->line, root->col); break;
+            case SYM_PARAMETER:  printf("Linked parameter %" PRIu64 " ('%s') [line:%d,col:%d]\n", root->entry->seq, root->entry->name, root->line, root->col); break;
+            case SYM_LOCAL_VAR:  printf("Linked local var %" PRIu64 " ('%s') [line:%d,col:%d]\n", root->entry->seq, root->entry->name, root->line, root->col); break;
+#else
             case SYM_GLOBAL_VAR: printf("Linked global var '%s'\n",      root->entry->name); break;
-            case SYM_FUNCTION:   printf("Linked function %zu ('%s')\n",  root->entry->seq, root->entry->name); break;
-            case SYM_PARAMETER:  printf("Linked parameter %zu ('%s')\n", root->entry->seq, root->entry->name); break;
-            case SYM_LOCAL_VAR:  printf("Linked local var %zu ('%s')\n", root->entry->seq, root->entry->name); break;
-            #endif
+            case SYM_FUNCTION:   printf("Linked function %" PRIu64 " ('%s')\n",  root->entry->seq, root->entry->name); break;
+            case SYM_PARAMETER:  printf("Linked parameter %" PRIu64 " ('%s')\n", root->entry->seq, root->entry->name); break;
+            case SYM_LOCAL_VAR:  printf("Linked local var %" PRudit " ('%s')\n", root->entry->seq, root->entry->name); break; 
+#endif
         }
     } else if (root->type == STRING_DATA) {
         uint64_t string_max = root->entry_max; // NOTE: Modified.
-        if (string_max < VEC_LEN(&ctx->strings)) printf("Linked string %zu\n", root->entry_strings_index); // NOTE: Modified.
+        if (string_max < VEC_LEN(&ctx->strings)) printf("Linked string %" PRIu64 "\n", root->entry_strings_index); // NOTE: Modified.
         else printf("(Not an indexed string)\n");
     }
     for (size_t c = 0; c < root->n_children; c++)

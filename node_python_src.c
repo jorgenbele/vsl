@@ -170,7 +170,7 @@ static void emit_return_statement(const node_t *n)
 {
     if (cur_col) NEWLINE;
 
-    emit_str(" # __return__ "); EMIT_FMT("%" PRIu64, CURRENT_SCOPE_DEPTH()); NEWLINE;
+    emit_str(" # __return__ "); EMIT_FMT("%zu", CURRENT_SCOPE_DEPTH()); NEWLINE;
 
     /* Check if not in the immediate scope of a function.
      * Since the first scope is globals, the immediate scope is
@@ -412,13 +412,13 @@ static void emit_block(const node_t *n)
             if (i + 1 < VEC_LEN(&scope_vars)) emit_str(", ");
         }
         emit_str(" = [0]*");
-        EMIT_FMT("%" PRIu64, VEC_LEN(&scope_vars));
+        EMIT_FMT("%zu", VEC_LEN(&scope_vars));
         NEWLINE;
     }
 
 
     emit_str(" # new scope ");;
-    EMIT_FMT("%" PRIu64, CURRENT_SCOPE_DEPTH());
+    EMIT_FMT("%zu", CURRENT_SCOPE_DEPTH());
     NEWLINE;
 
     PUSH_NEW_SCOPE(scope_vars, false);
@@ -440,7 +440,7 @@ static void emit_block(const node_t *n)
     if (CURRENT_SCOPE_DEPTH() >= INNER_FUNCTION_SCOPE_DEPTH-1) {
         /* Call the created function. */
         emit_str("__ret_type___, __ret_val___ = block_");
-        EMIT_FMT("%" PRIu64 "()", CURRENT_SCOPE_DEPTH());
+        EMIT_FMT("%zu()", CURRENT_SCOPE_DEPTH());
         //dprintf(python_src_print_fileno, "%lu()", VEC_LEN(&block_scopes));
         NEWLINE;
         emit_str("if __ret_type___ == __BLOCK_RETURN___:"); NEWLINE;
