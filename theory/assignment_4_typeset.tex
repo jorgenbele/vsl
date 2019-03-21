@@ -1,0 +1,241 @@
+% Created 2019-03-21 Thu 16:00
+% Intended LaTeX compiler: pdflatex
+\documentclass[11pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{graphicx}
+\usepackage{grffile}
+\usepackage{longtable}
+\usepackage{wrapfig}
+\usepackage{rotating}
+\usepackage[normalem]{ulem}
+\usepackage{amsmath}
+\usepackage{textcomp}
+\usepackage{amssymb}
+\usepackage{capt-of}
+\usepackage{hyperref}
+\usepackage{minted}
+\author{Jørgen Bele Reinfjell}
+\date{\today}
+\title{TDT4205 Compiler Construction (2019)\\\medskip
+\large Assignment 4}
+\hypersetup{
+ pdfauthor={Jørgen Bele Reinfjell},
+ pdftitle={TDT4205 Compiler Construction (2019)},
+ pdfkeywords={},
+ pdfsubject={},
+ pdfcreator={Emacs 26.1 (Org mode 9.2.1)}, 
+ pdflang={English}}
+\begin{document}
+
+\maketitle
+
+\section{Three Access Code and Stack Machine 10\%}
+\label{sec:org5085dce}
+\begin{minted}[frame=lines,linenos=true]{julia}
+def main()
+begin
+    var k = gcd(1144, 546)
+end
+
+def gcd(a, b)
+begin
+    var g
+    if b > 0 then
+        g := gcd(b, a - ((a/b/)*b))
+    else
+        g := a
+    end
+    return g
+end
+\end{minted}
+
+\subsection{TAC representation}
+\label{sec:org8b7cece}
+\begin{minted}[frame=lines,linenos=true]{asm}
+main: # main()
+    BeginFunc <bytes>;
+    PushParam 546;
+    PushParam 1144;
+    k = LCall gcd;
+    PopParams 16; # 2 64-bit numbers
+    EndFunc;
+
+gcd: # gcd(a, b)
+    BeginFunc <bytes>;
+    _t0 = 0 < b;
+    IfZ _t0 Goto _L0; # if b > 0
+# b is greater than 0
+    _t1 = a / b;
+    _t2 = _t1 * b;
+    _t3 = a - _t2;
+    PushParam _t3;
+    PushParam b;
+    g = LCall gcd # _t1 = gcd(b, a - ((a/b)*b));
+    PopParams 16; # 2* 64-bits
+    Goto _L1;
+
+_L0: # else
+    g = a;
+_L1:
+    return g;
+    EndFunc;
+
+\end{minted}
+
+\subsection{Stack Layout (with assembly)}
+\label{sec:orge1164aa}
+\begin{itemize}
+\item Parameters are passed by registers (rdi, rsi, rdx, \ldots{}).
+\item These parameters are saved by the caller to
+ensure that any subsequent calls does not overwrite them.
+\item Return values are returned in the rax register.
+\end{itemize}
+
+\subsubsection{Layout}
+\label{sec:orgbf16a8c}
+\begin{center}
+\begin{tabular}{rll}
+Stackframe offset & Identifier & Type\\
+\hline
+-8 & a & param\\
+-16 & b & param\\
+-24 & g & local\\
+-32 &  & padding\\
+\end{tabular}
+\end{center}
+
+\subsubsection{When gcd(1144, 546) is about to return  (inner return)}
+\label{sec:org67932b4}
+\begin{enumerate}
+\item Stackframe \#0 (gcd)
+\label{sec:orgc63789c}
+\begin{center}
+\begin{tabular}{rll}
+Offset & Id & Value\\
+\hline
+-8 & a & 1144\\
+-16 & b & 546\\
+-24 & g & <unset>\\
+-32 &  & <unused>\\
+\end{tabular}
+\end{center}
+
+\item Stackframe \#1 (gcd)
+\label{sec:org681da19}
+\begin{center}
+\begin{tabular}{rll}
+Offset & Id & Value\\
+\hline
+-8 & a & 546\\
+-16 & b & 52\\
+-24 & g & <unset>\\
+-32 &  & <unused>\\
+\end{tabular}
+\end{center}
+
+\item Stackframe \#2 (gcd)
+\label{sec:org029b46b}
+\begin{center}
+\begin{tabular}{rll}
+Offset & Id & Value\\
+\hline
+-8 & a & 52\\
+-16 & b & 26\\
+-24 & g & <unset>\\
+-32 &  & <unused>\\
+\end{tabular}
+\end{center}
+
+\item Stackframe \#3 (gcd)
+\label{sec:orgbd8fd64}
+\begin{center}
+\begin{tabular}{rlr}
+Offset & Id & Value\\
+\hline
+-8 & a & 26\\
+-16 & b & 0\\
+-24 & g & 26\\
+-32 &  & <unused>\\
+\end{tabular}
+\end{center}
+
+\begin{itemize}
+\item This returns 26, which is then returned by all other calls.
+\end{itemize}
+
+\item Stackframe \#0 before returning to main (gcd)
+\label{sec:orgfe0ea4b}
+\begin{center}
+\begin{tabular}{rlr}
+Offset & Id & Value\\
+\hline
+-8 & a & 1144\\
+-16 & b & 546\\
+-24 & g & 26\\
+-32 &  & <unused>\\
+\end{tabular}
+\end{center}
+\end{enumerate}
+
+\subsubsection{Assembly}
+\label{sec:orgd08f72d}
+\begin{minted}[frame=lines,linenos=true]{asm}
+.section .rodata
+    return_val: .string "gcd(%ld, %ld) = %ld\n"
+.section .data
+.globl main
+.section .text
+main:
+    movq $1144, %rdi
+    movq $546,  %rsi
+    pushq %rdi # save
+    pushq %rsi # save
+    call gcd
+
+    lea return_val(%rip), %rdi
+    popq %rdx
+    popq %rsi
+    movq %rax, %rcx
+    xorq %rax, %rax
+    call printf
+    ret
+
+gcd:
+    pushq %rbp
+    movq %rsp, %rbp
+    subq $32, %rsp
+    movq %rdi, -8(%rbp)  # param a
+    movq %rsi, -16(%rbp) # param b
+    movq $0, -24(%rbp)   # local g
+    movq $0, -32(%rbp)   # alignment
+
+    #if 0 <= b then skip
+    cmpq $0, -16(%rbp)
+    jle skip_recurse
+
+    # a/b
+    movq $0, %rdx        # upper 64-bits
+    movq -8(%rbp), %rax  # lower 64-bits
+    idivq -16(%rbp)
+
+    imulq -16(%rbp), %rax # (a/b)*b
+    movq -8(%rbp), %rsi
+    subq %rax, %rsi # a - (a/b)*b => %rsi
+
+    # Recursive call to gcd(%rdi, %rsi)
+    movq -16(%rbp), %rdi # b
+    call gcd
+    movq %rax, -24(%rbp)
+    jmp done
+
+skip_recurse:
+    movq -8(%rbp), %rsi
+    movq %rsi, -24(%rbp) # g := a
+
+done:
+    movq -24(%rbp), %rax # return g
+    leave
+    ret
+\end{minted}
+\end{document}
