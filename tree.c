@@ -1,6 +1,8 @@
 #include "tree.h"
 #include "utils.h"
 
+#include <assert.h>
+
 /* NOTE: Changed from "destroy subtree" to "tree_destroy",
  *       as a subtree is always tree itself. */
 void tree_destroy(node_t *n)
@@ -32,9 +34,12 @@ static void eval_const_expr(node_t *root, vec_node_t_ptr *abandoned)
 
     /* Make sure all children are constants (numbers for now). */
     for (size_t i = 0; i < root->n_children; i++)
-        if (root->children[i]->type != NUMBER_DATA) return;
+        if (!root->children[i] || root->children[i]->type != NUMBER_DATA) return;
 
+    /* The clang static analyser thinks this is use-after-free because of SA_FREE_1. */
+    assert(root->n_children > 0);
     int_type left = root->children[0]->data_integer;
+
     node_t *res = NULL;
     if (root->n_children == 1) {
         if (*root->data_char_ptr == '-') res = EVAL_CONST_EXPR1(-, left);
@@ -43,6 +48,7 @@ static void eval_const_expr(node_t *root, vec_node_t_ptr *abandoned)
         if (root->n_children != 2) {
             debug("n_children has to be 1 or 2 for const. exprs.!: [%d:%d]", root->line, root->col);
             exit(1);
+            return;
         }
 
         int_type right = root->children[1]->data_integer;
@@ -54,11 +60,13 @@ static void eval_const_expr(node_t *root, vec_node_t_ptr *abandoned)
             default: {
                 debug("Unknown const.expr op: %c [%d:%d]", *root->data_char_ptr,  root->line, root->col);
                 exit(1);
+                return;
                 break;
             }
         }
     }
 
+    assert(res);
     node_t temp = *root;
     *root = *res;
     *res = temp;
@@ -97,7 +105,7 @@ static void eliminate_inter(node_t *root, vec_node_t_ptr *abandoned)
     for (size_t i = 0; i < root->n_children; i++)
         eliminate_inter(root->children[i], abandoned);
 
-    if ((root->n_children == 1)
+    if ((root->n_children == 1) && root->children[0]
         && ((root->type == EXPRESSION && !root->data) || root->type == STATEMENT)) {
 
         /* Swap root and child inplace. */
@@ -135,7 +143,7 @@ static void flatten(node_t *root, vec_node_t_ptr *abandoned)
     VEC(node_t_ptr) children;
     VEC_INIT(&children, node_t_ptr);
 
-    if (root->n_children == 1
+    if (root->n_children == 1 && root->children[0]
         && node_list_parents[root->children[0]->type] & NODE_TYPE_TO_FLAG(root->type)
         && (FLAG_KEEP_CHILDREN_TYPE & node_list_parents[root->children[0]->type])) {
         /* The FLAG_KEEP_CHILDREN_TYPE is set on the child, which is also compatible with
@@ -154,7 +162,8 @@ static void flatten(node_t *root, vec_node_t_ptr *abandoned)
     } else {
         for (size_t i = 0; i < root->n_children; i++) {
             node_t_ptr child = root->children[i];
-            if (node_list_parents[root->children[i]->type] & NODE_TYPE_TO_FLAG(root->type)) {
+            if (root->children[i]
+                && node_list_parents[root->children[i]->type] & NODE_TYPE_TO_FLAG(root->type)) {
                 /* Root and current child are compatible. Merge children of
                  * the current child with the root list. */
                 for (size_t j = 0; j < child->n_children; j++) {
@@ -167,9 +176,10 @@ static void flatten(node_t *root, vec_node_t_ptr *abandoned)
             } else {
                 /* No change.  */
                 VEC_PUSH(&children, node_t_ptr, child);
+                root->children[i] = NULL;
             }
         }
-        free(root->children);
+        free(root->children); /* SA_FREE_1 */
         root->children = VEC_ARRAY_PTR(&children);
         root->n_children = VEC_LEN(&children);
         /* NOTE: Does not destroy the vector data! */

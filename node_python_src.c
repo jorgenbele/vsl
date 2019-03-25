@@ -80,7 +80,7 @@ static const char *node_data_str(const node_t *n, size_t *len)
 
 static void align_col(int *cur_col, int col) { while (*cur_col < col) { (*cur_col)++; dprintf(python_src_print_fileno, " "); } }
 
-static void emit_str(const char *s) { if (!cur_col) { align_col(&cur_col, block_depth * BLOCK_INDENT); } else if (need_sep) { dprintf(python_src_print_fileno, " "); cur_col++; need_sep = false; } dprintf(python_src_print_fileno, "%s", s); cur_col += strlen(s); }
+static void emit_str(const char *s) { assert(s); if (!cur_col) { align_col(&cur_col, block_depth * BLOCK_INDENT); } else if (need_sep) { dprintf(python_src_print_fileno, " "); cur_col++; need_sep = false; } dprintf(python_src_print_fileno, "%s", s); cur_col += strlen(s); }
 static void emit_number(const node_t *n) { emit_str(node_data_str(n, &slen)); need_sep = true; }
 static void emit_ident(const node_t *n) { emit_str(node_data_str(n, &slen)); }
 
@@ -137,24 +137,25 @@ static void emit_expression(const node_t *n)
         need_sep = false;
         if (expression_depth > 1) emit_str(")");
     } else if (n->n_children == 2) {
-        bool maybe_ambiguous = false;
         const char *expr = NULL;
         switch (*node_data_str(n, &slen)) {
             case '/': expr = "//"; break;
             case '*': expr = "*";  break;
-            case '+': maybe_ambiguous = true; expr = "+";  break;
-            case '-': maybe_ambiguous = true; expr = "-";  break;
+            case '+': expr = "+";  break;
+            case '-': expr = "-";  break;
+            default:
+                break;
         }
 
-        maybe_ambiguous = true; // ...
-
-        if (expression_depth > 1 && maybe_ambiguous) emit_str("(");
+        //if (expression_depth > 1 && maybe_ambiguous) emit_str("(");
+        emit_str("(");
         emit_expression(n->children[0]); need_sep = true;
 
         emit_str(expr); need_sep = true;
         emit_expression(n->children[1]);
         need_sep = false;
-        if (expression_depth > 1 && maybe_ambiguous) emit_str(")");
+        //if (expression_depth > 1 && maybe_ambiguous) emit_str(")");
+        emit_str(")");
     } else if (n->type == NUMBER_DATA) {
         emit_number(n);
     } else if (n->type == IDENTIFIER_DATA) {
@@ -225,6 +226,9 @@ static void emit_relation(const node_t *n)
         case '=': out = "=="; break;
         case '<': out = "<";  break;
         case '>': out = ">";  break;
+        default:
+            assert(0);
+            break;
     }
 
     emit_str(out); need_sep = true;

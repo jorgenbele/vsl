@@ -199,7 +199,9 @@ enum {ERR_VEC_EMPTY=1,ERR_VEC_TOO_SHORT,ERR_VEC_INIT};
         DEF_VEC_SET(name, type, def)            \
         DEF_VEC_GET(name, type, def)            \
         DEF_VEC_GET_PTR(name, type, def)        \
-        DEF_VEC_AFTER(name, type, def)
+        DEF_VEC_AFTER(name, type, def)          \
+        DEF_VEC_PROTOTYPES(name, type) /* Fixes semicolon problem. */
+
 
 #define DEF_VEC(name, type, def)                \
     DEF_VEC_HEADER(name, type);                 \
