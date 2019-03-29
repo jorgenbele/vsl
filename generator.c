@@ -197,9 +197,40 @@ static void expression(ir_ctx_t *ctx, symbol_t *func, node_t *expr,
     int reg = 0;
 
     if (expr->n_children == 1) {
-        // TODO
-        puts("LAKSJDAKSJDLKJAS");
-        exit(2);
+        node_t *left = expr->children[0];
+
+        uint16_t t_left = left->entry ? (left->entry->type == SYM_GLOBAL_VAR ? T_GLOBAL : T_LOCAL) : 0x0;
+
+        /* Evaluate the expression. Results will be stored on the stack. */
+        if (left->type == EXPRESSION)  {
+            expression(ctx, func, left,  regs, regs_len, depth+1);
+            t_left  = T_STACK;
+        }
+
+        /* Has to be an identifier since '- <number>' const expressions
+         * evaluate to the -<number>. */
+
+        switch (*expr->data_char_ptr) {
+            case '-':
+                emit_instr_mem_reg(ctx, func, "movq", left, t_left, REG_RAX);
+                emit_instr0_reg(ctx, func, "negq", REG_RAX);
+                emit_instr0_reg(ctx, func, "pushq", REG_RAX);
+                break;
+
+            case '~':
+                emit_instr_mem_reg(ctx, func, "movq", left,
+                                   left->entry->type == SYM_GLOBAL_VAR ? T_GLOBAL : T_LOCAL,
+                                   REG_RAX);
+                emit_instr0_reg(ctx, func, "notq", REG_RAX);
+                emit_instr0_reg(ctx, func, "pushq", REG_RAX);
+                break;
+
+        default:
+            debug("EXPRESSION NOT IMPLEMENTED: [%d:%d]", expr->line, expr->col);
+            exit(1);
+            return;
+        }
+
         return;
     }
 
@@ -248,6 +279,13 @@ static void expression(ir_ctx_t *ctx, symbol_t *func, node_t *expr,
             break;
 
         case '/':
+            printf("# idiv, %d\n", t_right);
+            puts("\txor %edx, %edx");
+            emit_instr_mem_reg(ctx, func, "movq", right, t_right, REG_RDI);   // right -> rdi
+            emit_instr_mem_reg(ctx, func, "movq", left, t_left, REG_RAX);     // left -> rax
+            puts("\tidiv %rdi");
+            emit_instr0_reg(ctx, func, "pushq", REG_RAX);
+            break;
 
         default:
             debug("EXPRESSION NOT IMPLEMENTED: [%d:%d]", expr->line, expr->col);
@@ -267,7 +305,6 @@ static void assignment(ir_ctx_t *ctx, symbol_t *func, node_t *left, node_t *righ
     if (IS_CONST_TYPE(right->type)) {
         /* Only supported const type. */
         assert(right->type == NUMBER_DATA);
-
 
         /* <left> := <right> */
         //puts("# CONST");
@@ -295,17 +332,40 @@ static void assignment(ir_ctx_t *ctx, symbol_t *func, node_t *left, node_t *righ
     }
 }
 
+/* print_statement():
+ *      Horribly inefficient, but I guess this is how its supposed
+ *      to be done in this assignment.
+ */
+static void print_statement(ir_ctx_t *ctx, symbol_t *func, node_t *r)
+{
+    for (size_t i = 0; i < r->n_children; i++) {
+        if (r->children[i]->type == STRING_DATA) {
+            puts("\tleaq strout(%rip), %rdi");
+            printf("\tleaq global_string_%" PRId64 "(%%rip), %%rsi\n", r->children[i]->entry_strings_index);
+        } else if (r->children[i]->type == NUMBER_DATA) {
+            puts("\tleaq intout(%rip), %rdi");
+            printf("\tmovq $%" PRIdit "%%rdx\n", r->children[i]->data_integer);
+        } else if (r->children[i]->type == IDENTIFIER_DATA) {
+            puts("\tleaq intout(%rip), %rdi");
+            emit_instr_mem_reg(ctx, func, "movq", r->children[i],
+                               r->children[i]->entry->type == SYM_GLOBAL_VAR ? T_GLOBAL : T_LOCAL, REG_RSI);
+            //printf("\tmovq $%" PRIdit "%%rdi\n", r->data_integer);
+        } else {debug("ILLEGAL type: %s", NODE_TO_TYPE_STRING(r->children[i])); exit(1);}
+        puts("\txor %rax, %rax");
+        puts("\tcall printf");
+    }
+}
+
 static void rec_traverse(ir_ctx_t *ctx, symbol_t *func, node_t *r)
 {
-
     if (r->type == ASSIGNMENT_STATEMENT) {
         assignment(ctx, func, r->children[0], r->children[1]);
+    } else if (r->type == PRINT_STATEMENT) {
+        print_statement(ctx, func, r);
 
     } else if (r->type == RETURN_STATEMENT) {
-
         //emit_instr0_reg(ctx, func, "popq", REG_RAX);
         puts("\tmovq %rdi, %rax");
-
         puts("\tmovq %rbp, %rsp");
         puts("\tpopq %rbp");
         puts("\tret");
