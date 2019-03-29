@@ -209,11 +209,12 @@ static void expression(ir_ctx_t *ctx, symbol_t *func, node_t *expr,
 
     /* Evaluate the expression. Results will be stored on the stack. */
     if (left->type == EXPRESSION)  {
-        printf("#EVALUATING LEFT\n");
+        printf("# EVALUATING LEFT\n");
         expression(ctx, func, left,  regs, regs_len, depth+1);
+        printf("# DONE EVALUATING LEFT\n");
     }
     if (right->type == EXPRESSION) {
-        printf("#EVALUATING RIGHT\n");
+        printf("# DONE EVALUATING RIGHT\n");
         expression(ctx, func, right, regs, regs_len, depth+1);
     }
 
@@ -230,17 +231,24 @@ static void expression(ir_ctx_t *ctx, symbol_t *func, node_t *expr,
             emit_instr_mem_reg(ctx, func, "movq", left, t_left, REG_RDI);   // left -> rdi
             emit_instr_mem_reg(ctx, func, "addq", right, t_right, REG_RDI); // rdi += right
             emit_instr0_reg(ctx, func, "pushq", REG_RDI);
-            //if (t_left == T_STACK) puts("\tsubq $8, %rsp");
             break;
 
         case '-':
-            if (depth == 0)
-                puts("\txorq %rax, %rax");
-
-            emit_instr(ctx, func, "subq", left, t_left, right, t_right);
+            printf("# subq, %d\n", t_right);
+            emit_instr_mem_reg(ctx, func, "movq", left, t_left, REG_RDI);   // left -> rdi
+            emit_instr_mem_reg(ctx, func, "subq", right, t_right, REG_RDI); // rdi += right
+            emit_instr0_reg(ctx, func, "pushq", REG_RDI);
+            break;
 
         case '*':
+            printf("# imulq, %d\n", t_right);
+            emit_instr_mem_reg(ctx, func, "movq", left, t_left, REG_RDI);   // left -> rdi
+            emit_instr_mem_reg(ctx, func, "imul", right, t_right, REG_RDI); // rdi *= right
+            emit_instr0_reg(ctx, func, "pushq", REG_RDI);
+            break;
+
         case '/':
+
         default:
             debug("EXPRESSION NOT IMPLEMENTED: [%d:%d]", expr->line, expr->col);
             exit(1);
