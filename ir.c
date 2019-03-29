@@ -111,8 +111,6 @@ void ir_destroy_symtab(ir_ctx_t *ctx)
 #define IR_INSERT_GLOBAL_SYMBOL(ctx, symb)                              \
     tlhash_insert(&(ctx)->names, (symb)->name, (symb)->name_len, (symb))
 
-//inline static symbol_t *ir_symbol_new(char *name, size_t name_len, symtype_t type, node_t *node,
-//                       size_t seq, size_t nparms, tlhash_t *locals)
 inline static symbol_t *ir_symbol_new(char *name, size_t name_len, symtype_t type, node_t *node,
                        size_t seq, size_t nparms, VEC(symbol_t_ptr) *locals)
 {

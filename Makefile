@@ -12,7 +12,9 @@ CC=clang
 
 .PHONEY: main vsl_simplify vsl2py vsl_recreate clean purge rebuild
 
-all: main vsl_simplify vsl2py vsl_recreate print_symtab
+all: main vsl_simplify vsl2py vsl_recreate print_symtab compiler
+
+compiler: compiler.c parser.o scanner.o nodetypes.o node.o utils.o tree.o tlhash.o ir.o generator.o
 
 #vsl_simplify: vsl_simplify.c parser.o scanner.o nodetypes.o node.o utils.o tree.o node_python_src.o
 
