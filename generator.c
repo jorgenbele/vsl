@@ -5,9 +5,12 @@
 #include <assert.h>
 #include <inttypes.h>
 
+
 #include "instr.h"
 #include "ir.h"
 #include "utils.h"
+
+#include "node_src.h"
 
 
 static const char *param_regs[] = {
@@ -35,6 +38,16 @@ enum {
 /* Local variable offset. */
 #define VAR_INDEX_OFFSET(saved, index) (-((saved)*sizeof(int_type)) + (index)*sizeof(int_type))
 
+/* inline_src: Generate comments of source code in the
+ *             output assembly code. */
+static void inline_src(node_t *node)
+{
+    src_always_newline = 1;
+
+    printf("\n\t# ");
+    if (node->type == EXPRESSION) node_print_expression(node);
+    else node_print_statement(node);
+}
 
 static void gen_strtable(ir_ctx_t *ctx)
 {
@@ -43,7 +56,6 @@ static void gen_strtable(ir_ctx_t *ctx)
     puts("\tintout: .string \"%ld \"");
     puts("\tstrout: .string \"%s \"");
     puts("\terrout: .string \"Wrong number of arguments\"");
-    puts("\t__welcome_str: .string \"Starting program.!\"");
 
     /* TODO: Strings. */
     for (uint64_t i = 0; i < VEC_LEN(&ctx->strings); i++)
@@ -100,7 +112,7 @@ static void gen_main(symbol_t *main_func)
     puts("END:");
     puts("\tmovq %rax, %rdi");
     puts("\tcall exit");
-
+    putchar('\n');
 }
 
 #define IS_CONST_TYPE(node_type) ((node_type) == NUMBER_DATA)
@@ -192,38 +204,7 @@ static void emit_instr_imm_mem(ir_ctx_t *ctx, symbol_t *func, const char *instr,
     putchar('\n');
 }
 
-static void emit_instr_imm_reg(const char *instr, int_type imm, uint8_t reg)
-{
-    printf("\t%s $%" PRIdit ", %s\n", instr, imm, regs[reg]);
-}
-
-//static void emit_instr(ir_ctx_t *ctx, symbol_t *func, const char *instr,
-//                       node_t *left, uint8_t t_left, node_t *right, uint8_t t_right)
-//{
-//    (void) ctx; (void) func;
-//    int64_t left_rsp_offset = 0;
-//    if (t_right == T_STACK) left_rsp_offset -= 8;
-//
-//    printf("\t%s ", instr);
-//    switch (t_left) {
-//        case T_STACK: printf("%" PRId64 "(%%rsp), ", left_rsp_offset); break;
-//        case T_REG: debug("Not supported!"); exit(1); break;
-//        case T_PARAM: printf("%" PRId64 "(%%rbp), ", VAR_INDEX_OFFSET(VEC_LEN(func->locals), left->entry->seq)); break;
-//        case T_LOCAL: printf("%" PRId64 "(%%rbp), ", VAR_INDEX_OFFSET(VEC_LEN(func->locals), left->entry->seq + func->nparms)); break;
-//        case T_GLOBAL: debug("Not supported!"); exit(1); break; // TODO
-//        case T_CONST: printf("$%" PRIdit ", ", left->data_integer); break;
-//    }
-//
-//    switch (t_right) {
-//        case T_STACK: printf("(%%rsp), "); break;
-//        case T_REG: debug("Not supported!"); exit(1); break;
-//        case T_PARAM: printf("%" PRId64 "(%%rbp)", VAR_INDEX_OFFSET(VEC_LEN(func->locals), right->entry->seq)); break;
-//        case T_LOCAL: printf("%" PRId64 "(%%rbp)", VAR_INDEX_OFFSET(VEC_LEN(func->locals), right->entry->seq + func->nparms)); break;
-//        case T_GLOBAL: debug("Not supported!"); exit(1); break; // TODO
-//        case T_CONST: printf("$%" PRIdit, right->data_integer); break;
-//    }
-//    putchar('\n');
-//}
+static void emit_instr_imm_reg(const char *instr, int_type imm, uint8_t reg) { printf("\t%s $%" PRIdit ", %s\n", instr, imm, regs[reg]); }
 
 /* expression:
  *  Creates the assembly representing an expression.
@@ -231,6 +212,8 @@ static void emit_instr_imm_reg(const char *instr, int_type imm, uint8_t reg)
  *  by indexes in 'regs' as temporary registers. */
 static void expression(ir_ctx_t *ctx, symbol_t *func, node_t *expr, size_t *stack_top)
 {
+    //inline_src(expr);
+
     if (!strcmp(expr->data_char_ptr, "func_call")) {
         assert(expr->n_children == 2);
         node_t *func_ident = expr->children[0];
@@ -301,28 +284,25 @@ static void expression(ir_ctx_t *ctx, symbol_t *func, node_t *expr, size_t *stac
 
     switch (*expr->data_char_ptr) {
         case '+':
-            printf("# addq, %d\n", t_right);
+            //printf("# addq, %d\n", t_right);
             emit_instr_mem_reg(ctx, func, "movq", left, t_left, REG_RAX, stack_top, left_stack_offset);
             emit_instr_mem_reg(ctx, func, "addq", right, t_right, REG_RAX, stack_top, 0);
             break;
 
         case '-':
-            printf("# subq, %d\n", t_right);
+            //printf("# subq, %d\n", t_right);
             emit_instr_mem_reg(ctx, func, "movq", left, t_left, REG_RAX, stack_top, left_stack_offset);
             emit_instr_mem_reg(ctx, func, "subq", right, t_right, REG_RAX, stack_top, 0);
-            //emit_instr_reg_reg(ctx, func, "movq", REG_RDI, REG_RAX);
             break;
 
         case '*':
-            printf("# imulq, %d\n", t_right);
+            //printf("# imulq, %d\n", t_right);
             emit_instr_mem_reg(ctx, func, "movq", left, t_left, REG_RAX, stack_top, left_stack_offset);
             emit_instr_mem_reg(ctx, func, "imulq", right, t_right, REG_RAX, stack_top, 0);
-           // emit_instr_reg_mem(ctx, func, "imulq", REG_RAX, right, t_right, stack_top, 0);
-            //emit_instr_reg_reg(ctx, func, "movq", REG_RDI, REG_RAX);
             break;
 
         case '/':
-            printf("# idiv, %d\n", t_right);
+            //printf("# idiv, %d\n", t_right);
             puts("\txor %edx, %edx");
             emit_instr_mem_reg(ctx, func, "movq", right, t_right, REG_RDI, stack_top, 0);   // right -> rdi
             emit_instr_mem_reg(ctx, func, "movq", left, t_left, REG_RAX, stack_top, left_stack_offset);     // left -> rax
@@ -356,23 +336,23 @@ static void assignment(ir_ctx_t *ctx, symbol_t *func, node_t *left, node_t *righ
         /* Only supported const type. */
         assert(right->type == NUMBER_DATA);
 
-        printf("\t# local variable: %s [%lu] = CONST local %" PRIu64 "\n", left->entry->name, left->entry->seq, right->data_integer);
+        //printf("\t# local variable: %s [%lu] = CONST local %" PRIu64 "\n", left->entry->name, left->entry->seq, right->data_integer);
         emit_instr_imm_mem(ctx, func, "movq", right->data_integer, left, t_left, stack_top, 0);
 
     } else if (right->type == IDENTIFIER_DATA) {
-        puts("# IDENTIFIER_DATA");
+        //puts("# IDENTIFIER_DATA");
         emit_instr_mem_reg(ctx, func, "movq", right, t_right, REG_RAX, stack_top, 0);
         emit_instr_reg_mem(ctx, func, "movq", REG_RAX, left, t_left, stack_top, 0);
 
     } else if (right->type == EXPRESSION) {
-        puts("# BEGIN EXPRESSION");
+        //puts("# BEGIN EXPRESSION");
         expression(ctx, func, right, stack_top);
-        puts("# END EXPRESSION");
+        //puts("# END EXPRESSION");
 
         uint16_t left_t = 0;
         expr_instr_type_s(left, &left_t);
 
-        printf("\t# local variable: %s [%lu] = CONST local %" PRIu64 "\n", left->entry->name, left->entry->seq, right->data_integer);
+        //printf("\t# local variable: %s [%lu] = CONST local %" PRIu64 "\n", left->entry->name, left->entry->seq, right->data_integer);
         emit_instr_reg_mem(ctx, func, "movq", REG_RAX, left, left_t, stack_top, 0);
     }
 }
@@ -383,6 +363,7 @@ static void assignment(ir_ctx_t *ctx, symbol_t *func, node_t *left, node_t *righ
  */
 static void print_statement(ir_ctx_t *ctx, symbol_t *func, node_t *r, size_t *stack_top)
 {
+
     for (size_t i = 0; i < r->n_children; i++) {
         if (r->children[i]->type == STRING_DATA) {
             puts("\tleaq strout(%rip), %rdi");
@@ -407,22 +388,25 @@ static void print_statement(ir_ctx_t *ctx, symbol_t *func, node_t *r, size_t *st
 static void rec_traverse(ir_ctx_t *ctx, symbol_t *func, node_t *r, size_t *stack_top)
 {
     if (r->type == ASSIGNMENT_STATEMENT) {
+        inline_src(r);
         assignment(ctx, func, r->children[0], r->children[1], stack_top);
+
     } else if (r->type == PRINT_STATEMENT) {
+        inline_src(r);
         print_statement(ctx, func, r, stack_top);
 
     } else if (r->type == EXPRESSION) {
         expression(ctx, func, r, stack_top); // Result is stored in %rax.
 
     } else if (r->type == RETURN_STATEMENT) {
-
+        inline_src(r);
         assert(r->n_children == 1);
         node_t *ret_val = r->children[0];
         if (ret_val->type == EXPRESSION) {
-            puts("\t # RETURN EXPRESSION");
+            //puts("\t # RETURN EXPRESSION");
             expression(ctx, func, ret_val, stack_top);
         } else {
-            puts("\t # RETURN LOCAL/GLOBAL/CONST ");
+            //puts("\t # RETURN LOCAL/GLOBAL/CONST ");
             uint16_t ret_val_type = 0;
             expr_instr_type_s(ret_val, &ret_val_type);
             emit_instr_mem_reg(ctx, func, "movq", ret_val, ret_val_type, REG_RAX, stack_top, 0);
@@ -501,11 +485,17 @@ static void gen_func(ir_ctx_t *ctx, symbol_t *func)
     rec_traverse(ctx, func, func->node, &stack_top);
     assert(stack_top == 0);
 
-    /* In case there is no return statement. */
-    puts("\txor %rax, %rax");
-    puts("\tmovq %rbp, %rsp");
-    puts("\tpopq %rbp");
-    puts("\tret");
+    /* In case there is no end return statement. */
+    node_t *func_block = func->node->children[func->node->n_children-1];
+    node_t *statement_list = func_block->children[func_block->n_children-1];
+    if (statement_list->children[statement_list->n_children-1]->type != RETURN_STATEMENT) {
+        putchar('\n');
+        puts("\txor %rax, %rax");
+        puts("\tmovq %rbp, %rsp");
+        puts("\tpopq %rbp");
+        puts("\tret");
+    }
+    putchar('\n');
 }
 
 static void gen_global(ir_ctx_t *ctx, symbol_t *global)

@@ -15,8 +15,11 @@
  *      pain I will not endure.).
  */
 void node_print_source(node_t *root);
+void node_print_statement(node_t *n);
 
 /* Can be set to override the default: 1. */
-extern int src_print_fileno;
+extern FILE *src_print_file;
+extern char *src_line_prefix;
+extern int src_always_newline;
 
 #endif /* __NODE_SRC_H_ */

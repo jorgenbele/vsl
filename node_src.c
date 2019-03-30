@@ -2,10 +2,14 @@
 #include <inttypes.h>
 #include <assert.h>
 
+#include <stdio.h>
+
 #define BLOCK_INDENT 4
 
 /* List of globals. */
-int src_print_fileno = 1;
+FILE *src_print_file = NULL;
+int src_always_newline = 0;
+char *src_line_prefix = "";
 
 /* List of static variables. */
 static int cur_col = 0;
@@ -16,7 +20,7 @@ static bool need_sep = false;
 static int block_depth = 0;
 static int expression_depth = 0;
 
-#define NEWLINE do { need_sep = false; emit_str("\n"); cur_line++; cur_col = 0; } while(0)
+#define NEWLINE do { need_sep = false; emit_str("\n"); emit_str(src_line_prefix); cur_line++; cur_col = 0; } while(0)
 
 /* Function prototypes. */
 static void emit_expression(const node_t *n);
@@ -40,9 +44,11 @@ static const char *node_data_str(const node_t *n, size_t *len)
     return "(UNKNOWN DATA)";
 }
 
-static void align_col(int *cur_col, int col) { while (*cur_col < col) { (*cur_col)++; dprintf(src_print_fileno, " "); } }
+/* TODO: FIX! */
+//static void align_col(int *cur_col, int col) { while (*cur_col < col) { (*cur_col)++; fprintf(src_print_file ? src_print_file : stdout, " "); } }
+static void align_col(int *cur_col, int col) { while (*cur_col < col) { (*cur_col)++; printf(" "); } }
 
-static void emit_str(const char *s) { if (!cur_col) { align_col(&cur_col, block_depth * BLOCK_INDENT); } else if (need_sep) { dprintf(src_print_fileno, " "); cur_col++; need_sep = false; } dprintf(src_print_fileno, "%s", s); cur_col += strlen(s); }
+static void emit_str(const char *s) { if (!cur_col) { align_col(&cur_col, block_depth * BLOCK_INDENT); } else if (need_sep) { printf(" "); cur_col++; need_sep = false; } printf("%s", s); cur_col += strlen(s); }
 static void emit_number(const node_t *n) { emit_str(node_data_str(n, &slen)); need_sep = true; }
 static void emit_ident(const node_t *n) { emit_str(node_data_str(n, &slen)); }
 
@@ -275,6 +281,18 @@ static void emit_node(const node_t *n)
         case ASSIGNMENT_STATEMENT: emit_assignment_statement(n); break;
         default: error("Node type not handled yet!", n); break;
     }
+}
+
+void node_print_statement(node_t *n)
+{
+    emit_statement(n);
+    if (src_always_newline && cur_col) NEWLINE;
+}
+
+void node_print_expression(node_t *n)
+{
+    emit_expression(n);
+    if (src_always_newline && cur_col) NEWLINE;
 }
 
 void node_print_source(node_t *n)

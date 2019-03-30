@@ -27,7 +27,7 @@ int main(int argc, char *argv[])
     node_print(ast_g_root, 0);
 
     debug("\n\n==== SOURCE ====\n\n");
-    src_print_fileno = 2;
+    src_print_file = stderr;
     node_print_source(ast_g_root);
 
     //debug("\n\n==== PYTHON SOURCE ====\n\n");
