@@ -44,9 +44,10 @@ static void inline_src(node_t *node)
 {
     src_always_newline = 1;
 
-    printf("\n\t# ");
+    printf("\n/*\n");
     if (node->type == EXPRESSION) node_print_expression(node);
     else node_print_statement(node);
+    printf("\n*/\n");
 }
 
 static void gen_strtable(ir_ctx_t *ctx)
@@ -150,20 +151,18 @@ static void expr_instr_type(node_t *left, uint16_t *tl, node_t *right, uint16_t 
     expr_instr_type_s(right, tr);
 }
 
-static void emit_instr0_reg(ir_ctx_t *ctx, symbol_t *func, const char *instr, uint8_t reg)
-{
-    (void) ctx; (void) func;
-    printf("\t%s %s\n", instr, regs[reg]);
-}
 
-static void emit_instr_reg_reg(ir_ctx_t *ctx, symbol_t *func, const char *instr,
-                               uint8_t reg_left, uint8_t reg_right) {
-    (void) ctx; (void) func;
-    printf("\t%s %s, %s\n", instr, regs[reg_left], regs[reg_right]);
-}
+static void emit_label(uint64_t label) { printf("\n_label_%" PRId64 ":\n", label); }
+
+static void emit_instr0_reg(const char *instr, uint8_t reg) { printf("\t%s %s\n", instr, regs[reg]); }
+static void emit_instr0_imm(const char *instr, int_type imm) { printf("\t%s _label_%" PRIdit "\n", instr, imm); }
+static void emit_instr0_label(const char *instr, uint64_t label) { printf("\t%s _label_%" PRId64 "\n", instr, label); }
+
+static void emit_instr_reg_reg(const char *instr, uint8_t reg_left, uint8_t reg_right) { printf("\t%s %s, %s\n", instr, regs[reg_left], regs[reg_right]); }
 
 static void emit_instr_param(ir_ctx_t *ctx, symbol_t *func, node_t *n, uint8_t t_n, size_t *stack_top, size_t stack_offset)
 {
+    (void) ctx;
     switch (t_n) {
         //case T_STACK:  printf("%" PRId64 "(%%rsp)", (*stack_top - stack_offset)*sizeof(int_type)); break;
         case T_STACK:  printf("%" PRId64 "(%%rsp)", (stack_offset)*sizeof(int_type)); break;
@@ -221,7 +220,14 @@ static void expression(ir_ctx_t *ctx, symbol_t *func, node_t *expr, size_t *stac
         for (size_t i = 0; i < arglist->n_children; i++) {
             uint16_t type = 0;
             expr_instr_type_s(arglist->children[i], &type);
-            emit_instr_mem_reg(ctx, func, "movq", arglist->children[i], type, i, stack_top, 0);
+
+            if (arglist->children[i]->type == EXPRESSION) {
+                expression(ctx, func, arglist->children[i], stack_top);
+                emit_instr_reg_reg("movq", REG_RAX, i);
+            } else {
+                emit_instr_mem_reg(ctx, func, "movq", arglist->children[i], type, i, stack_top, 0);
+            }
+
         }
         printf("\tcall _%s\n", func_ident->data_char_ptr);
         return;
@@ -233,7 +239,7 @@ static void expression(ir_ctx_t *ctx, symbol_t *func, node_t *expr, size_t *stac
         uint16_t t_left = 0;
         expr_instr_type_s(left, &t_left);
 
-        /* Evaluate the expression. Results will be stored on the stack. */
+        /* Evaluate the expression. Results will be stored in %rax . */
         if (left->type == EXPRESSION) expression(ctx, func, left, stack_top);
         else emit_instr_mem_reg(ctx, func, "movq", left, t_left, REG_RAX, stack_top, 0);
 
@@ -242,12 +248,12 @@ static void expression(ir_ctx_t *ctx, symbol_t *func, node_t *expr, size_t *stac
         switch (*expr->data_char_ptr) {
             case '-':
                 //emit_instr_mem_reg(ctx, func, "movq", left, t_left, REG_RAX, 0);
-                emit_instr0_reg(ctx, func, "negq", REG_RAX);
+                emit_instr0_reg("negq", REG_RAX);
                 break;
 
             case '~':
                 //emit_instr_mem_reg(ctx, func, "movq", left, t_left, REG_RAX, 0);
-                emit_instr0_reg(ctx, func, "notq", REG_RAX);
+                emit_instr0_reg("notq", REG_RAX);
                 break;
 
             default:
@@ -270,13 +276,13 @@ static void expression(ir_ctx_t *ctx, symbol_t *func, node_t *expr, size_t *stac
     /* Evaluate the expression. Results will be stored on the stack. */
     if (left->type == EXPRESSION)  {
         expression(ctx, func, left, stack_top);
-        puts("\tpushq %rax"); // PUSH TO STACK
+        emit_instr0_reg("pushq", REG_RAX);
         (*stack_top)++;
         t_left = T_STACK;
     }
     if (right->type == EXPRESSION) {
         expression(ctx, func, right, stack_top);
-        puts("\tpushq %rax"); // PUSH TO STACK
+        emit_instr0_reg("pushq", REG_RAX);
         (*stack_top)++;
         t_right = T_STACK;
         left_stack_offset = 1;
@@ -365,24 +371,134 @@ static void print_statement(ir_ctx_t *ctx, symbol_t *func, node_t *r, size_t *st
 {
 
     for (size_t i = 0; i < r->n_children; i++) {
-        if (r->children[i]->type == STRING_DATA) {
-            puts("\tleaq strout(%rip), %rdi");
-            printf("\tleaq global_string_%" PRId64 "(%%rip), %%rsi\n", r->children[i]->entry_strings_index);
-        } else if (r->children[i]->type == NUMBER_DATA) {
-            puts("\tleaq intout(%rip), %rdi");
-            //printf("\tmovq $%" PRIdit "%%rdx\n", r->children[i]->data_integer);
-            emit_instr_imm_reg("movq", r->children[i]->data_integer, REG_RDX);
-        } else if (r->children[i]->type == IDENTIFIER_DATA) {
-            uint16_t t = 0;
-            expr_instr_type_s(r->children[i], &t);
-            puts("\tleaq intout(%rip), %rdi");
-            emit_instr_mem_reg(ctx, func, "movq", r->children[i], t, REG_RSI, stack_top, 0);
-        } else {debug("ILLEGAL type: %s", NODE_TO_TYPE_STRING(r->children[i])); exit(1);}
+        switch (r->children[i]->type) {
+            case STRING_DATA:
+                puts("\tleaq strout(%rip), %rdi");
+                printf("\tleaq global_string_%" PRId64 "(%%rip), %%rsi\n", r->children[i]->entry_strings_index);
+                break;
+
+            case NUMBER_DATA:
+                puts("\tleaq intout(%rip), %rdi");
+                //printf("\tmovq $%" PRIdit "%%rdx\n", r->children[i]->data_integer);
+                emit_instr_imm_reg("movq", r->children[i]->data_integer, REG_RDX);
+                break;
+
+            case IDENTIFIER_DATA: {
+                uint16_t t = 0;
+                expr_instr_type_s(r->children[i], &t);
+                puts("\tleaq intout(%rip), %rdi");
+                emit_instr_mem_reg(ctx, func, "movq", r->children[i], t, REG_RSI, stack_top, 0);
+                break;
+            }
+            case EXPRESSION: {
+                expression(ctx, func, r->children[i], stack_top);
+                puts("\tleaq intout(%rip), %rdi");
+                emit_instr_reg_reg("movq", REG_RAX, REG_RSI);
+                break;
+            }
+            default:
+                debug("ILLEGAL type: %s", NODE_TO_TYPE_STRING(r->children[i]));
+                exit(1);
+                break;
+
+        }
+
         puts("\txor %rax, %rax");
         puts("\tcall printf");
     }
     puts("\tmovq $10, %rdi");
     puts("\tcall putchar");
+}
+
+static void emit_cmp(ir_ctx_t *ctx, symbol_t *func, const char *rel_str,
+                     node_t *left, node_t *right,
+                     uint64_t *true_label, uint64_t *false_label, size_t *stack_top)
+{
+    uint16_t t_left, t_right;
+    t_left = t_right = 0;
+    expr_instr_type(left, &t_left, right, &t_right);
+    size_t left_stack_offset = 0;
+
+    if (left->type == EXPRESSION)  {
+        expression(ctx, func, left, stack_top);
+        emit_instr0_reg("pushq", REG_RAX);
+        (*stack_top)++;
+        t_left = T_STACK;
+    }
+    if (right->type == EXPRESSION)  {
+        expression(ctx, func, right, stack_top);
+        emit_instr0_reg("pushq", REG_RAX);
+        (*stack_top)++;
+        t_right = T_STACK;
+        left_stack_offset = 1;
+    }
+
+    /* Load left into %rdi. */
+    emit_instr_mem_reg(ctx, func, "movq", left, t_left, REG_RDI, stack_top, left_stack_offset);
+    /* Load right into %rsi. */
+    emit_instr_mem_reg(ctx, func, "movq", right, t_right, REG_RSI, stack_top, 0);
+
+    /* Cleanup stack before any jump. */
+    if (t_left == T_STACK) { emit_instr_imm_reg("subq", 0x8, REG_RSP); (*stack_top)--;}
+    if (t_right == T_STACK) { emit_instr_imm_reg("subq", 0x8, REG_RSP); (*stack_top)--;}
+
+    emit_instr_reg_reg("cmpq", REG_RSI, REG_RDI);
+
+    switch (*rel_str) {
+        case '<':
+            if (!true_label) {
+                emit_instr0_label("jge", *false_label);
+            } else {
+                emit_instr0_label("jl", *true_label);
+                if (false_label) emit_instr0_label("jmp", *false_label);
+            }
+            break;
+        case '>':
+            if (!true_label) {
+                emit_instr0_label("jle", *false_label);
+            } else {
+                emit_instr0_label("jg", *true_label);
+                if (false_label) emit_instr0_label("jmp", *false_label);
+            }
+            break;
+        case '=':
+            if (!true_label) {
+                emit_instr0_label("jne", *false_label);
+            } else {
+                emit_instr0_label("je", *true_label);
+                if (false_label) emit_instr0_label("jmp", *false_label);
+            }
+            break;
+    }
+}
+
+/* prototype */
+static void rec_traverse(ir_ctx_t *ctx, symbol_t *func, node_t *r, size_t *stack_top);
+
+static void if_statement(ir_ctx_t *ctx, symbol_t *func, node_t *relation,
+                         node_t *true_block, node_t *else_block, size_t *stack_top)
+{
+    if (!else_block) {
+        uint64_t false_label = ctx->label_count++;
+
+        /* No true label since the true block is directly following this block. */
+        emit_cmp(ctx, func, relation->data_char_ptr, relation->children[0],
+                 relation->children[1], NULL, &false_label, stack_top);
+        rec_traverse(ctx, func, true_block, stack_top);
+        emit_label(false_label); /* End of if-true block. */
+
+    } else {
+        uint64_t false_label = ctx->label_count++;
+        uint64_t end_if_label = ctx->label_count++;
+
+        emit_cmp(ctx, func, relation->data_char_ptr, relation->children[0],
+                 relation->children[1], NULL, &false_label, stack_top);
+        rec_traverse(ctx, func, true_block, stack_top);
+        emit_instr0_imm("jmp", end_if_label); /* End of if-true block, jump to end of if. */
+        emit_label(false_label);
+        rec_traverse(ctx, func, else_block, stack_top);
+        emit_label(end_if_label); /* End of if. */
+    }
 }
 
 static void rec_traverse(ir_ctx_t *ctx, symbol_t *func, node_t *r, size_t *stack_top)
@@ -394,6 +510,12 @@ static void rec_traverse(ir_ctx_t *ctx, symbol_t *func, node_t *r, size_t *stack
     } else if (r->type == PRINT_STATEMENT) {
         inline_src(r);
         print_statement(ctx, func, r, stack_top);
+
+    } else if (r->type == IF_STATEMENT) {
+        inline_src(r);
+        node_t *else_block = NULL;
+        if (r->n_children == 3) else_block = r->children[2];
+        if_statement(ctx, func, r->children[0], r->children[1], else_block, stack_top);
 
     } else if (r->type == EXPRESSION) {
         expression(ctx, func, r, stack_top); // Result is stored in %rax.
