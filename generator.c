@@ -67,7 +67,6 @@ static void gen_strtable(ir_ctx_t *ctx)
 static void gen_main(symbol_t *main_func)
 {
     puts(".globl main");
-    puts(".section .text");
     puts("main:");
 
     puts("\tpushq %rbp");
@@ -171,7 +170,8 @@ static void emit_instr_param(ir_ctx_t *ctx, symbol_t *func, node_t *n, uint8_t t
         case T_REG:    debug("Not supported!"); exit(1); break;
         case T_PARAM:  printf("%" PRId64 "(%%rbp)", VAR_INDEX_OFFSET(VEC_LEN(func->locals), n->entry->seq)); break;
         case T_LOCAL:  printf("%" PRId64 "(%%rbp)", VAR_INDEX_OFFSET(VEC_LEN(func->locals), n->entry->seq + func->nparms)); break;
-        case T_GLOBAL: debug("Not supported!"); exit(1); break; // TODO
+        case T_GLOBAL: printf("_%s(%%rip)", n->entry->name); break;
+
         case T_CONST:  printf("$%" PRIdit, n->data_integer); break;
     }
 }
@@ -498,15 +498,6 @@ static void gen_func(ir_ctx_t *ctx, symbol_t *func)
     putchar('\n');
 }
 
-static void gen_global(ir_ctx_t *ctx, symbol_t *global)
-{
-    switch (global->type) {
-        case SYM_GLOBAL_VAR: break;
-        case SYM_FUNCTION: gen_func(ctx, global); break;
-        default: debug("Unexpected symbol: %s\n", global->name); exit(1); break;
-    }
-}
-
 #define FOR_EACH_IN_TLHASH(tlhash_ptr, temp_var_name, statements)   \
     do {                                                            \
         size_t n_globals = tlhash_size(tlhash_ptr);                 \
@@ -541,6 +532,7 @@ void gen_program(ir_ctx_t *ctx)
     );
 
     /* Generate main. */
+    puts(".section .text");
     assert(main);
     gen_main(main);
 
