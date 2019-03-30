@@ -22,7 +22,7 @@ def main():
                 def block_4():
                     nonlocal __default_nonlocal___, a
                      # new scope 4
-                    a = a - 1
+                    a = (a - 1)
                     print( "Skip...")
                     return __BLOCK_CONTINUE___, None
                     return __BLOCK_DO_NOTHING___, None # default return
@@ -34,7 +34,7 @@ def main():
                 
                 
             else:
-                a = a - 1
+                a = (a - 1)
             print( a )
             return __BLOCK_DO_NOTHING___, None # default return
         __ret_type___, __ret_val___ = block_3()

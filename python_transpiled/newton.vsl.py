@@ -29,10 +29,10 @@ def improve(n, estimate):
     __default_nonlocal___ = None
     next = [0]*1
      # new scope 1
-    next = estimate - (((estimate * estimate) - n) // (2 * estimate))
-    if next - estimate == 0 :
+    next = (estimate - (((estimate * estimate) - n) // (2 * estimate)))
+    if (next - estimate) == 0 :
          # __return__ 2
-        return next - 1
+        return (next - 1)
     else:
          # __return__ 2
         return improve(n, next)

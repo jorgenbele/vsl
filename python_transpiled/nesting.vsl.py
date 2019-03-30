@@ -68,7 +68,7 @@ def test_me(a):
     
     
      # __return__ 2
-    return a + 1
+    return (a + 1)
     return __BLOCK_DO_NOTHING___, None # default return
 
 

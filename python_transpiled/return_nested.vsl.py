@@ -28,7 +28,7 @@ def test(a):
          # new scope 2
         x = 64
          # __return__ 3
-        return __BLOCK_RETURN___, x + a
+        return __BLOCK_RETURN___, (x + a)
         print( "This never executes")
         return __BLOCK_DO_NOTHING___, None # default return
     __ret_type___, __ret_val___ = block_2()

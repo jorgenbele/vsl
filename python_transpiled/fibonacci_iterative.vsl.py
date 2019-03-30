@@ -26,10 +26,10 @@ def main(n):
                             nonlocal __default_nonlocal___, n
                             nonlocal __default_nonlocal___, w, x, y, f
                              # new scope 4
-                            f = y + x
+                            f = (y + x)
                             x = y
                             y = f
-                            w = w - 1
+                            w = (w - 1)
                             return __BLOCK_DO_NOTHING___, None # default return
                         __ret_type___, __ret_val___ = block_4()
                         if __ret_type___ == __BLOCK_RETURN___:

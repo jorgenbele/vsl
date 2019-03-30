@@ -16,8 +16,8 @@ def main():
     a = 100
     b = 20
     print( "a is", a, "and b is", b )
-    print( "a/(-b) is", a // (-b) )
-    print( "10/(-2) is", 10 // (-2) )
+    print( "a/(-b) is", (a // (-b)) )
+    print( "10/(-2) is", (10 // (-2)) )
      # __return__ 2
     return 0
     return __BLOCK_DO_NOTHING___, None # default return

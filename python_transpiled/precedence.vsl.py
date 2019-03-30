@@ -16,9 +16,9 @@ def main():
     a = 2
     b = 3
     c = 1
-    d = a * (b - c)
+    d = (a * (b - c))
     print( "2*(3-1) := ", d )
-    d = (a * b) - c
+    d = ((a * b) - c)
     print( "2*3-1 := ", d )
      # __return__ 2
     return 0

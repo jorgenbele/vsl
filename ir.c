@@ -37,6 +37,7 @@ void ir_ctx_init(ir_ctx_t *ctx)
     ctx->temp_size = 0;
 
     ctx->seq = 0;
+    ctx->label_count = 0;
 }
 
 #define DESTROY_TLHASH_SYMBS(tlhash_ptr)                        \

@@ -26,7 +26,7 @@ def tralala(wang):
     z = 2
     w = 4
     wang = 42
-    print( wang, x * y, z * w )
+    print( wang, (x * y), (z * w) )
      # __return__ 2
     return 1
     return __BLOCK_DO_NOTHING___, None # default return

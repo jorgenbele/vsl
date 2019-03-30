@@ -25,18 +25,18 @@ def test(a, b):
     c = [0]*1
      # new scope 1
     print( "My parameters are a:=", a, "and b:=", b )
-    c = a + b
+    c = (a + b)
     print( "Their sum is c:=", c )
-    c = a - b
+    c = (a - b)
     print( "Their difference is c:=", c )
-    c = a * b
+    c = (a * b)
     print( "Their product is c:=", c )
-    c = a // b
+    c = (a // b)
     print( "Their ratio is c:=", c )
     print( "(-c):=", -c )
-    print( "The sum of their squares is ", (a * a) + (b * b) )
+    print( "The sum of their squares is ", ((a * a) + (b * b)) )
      # __return__ 2
-    return a - b
+    return (a - b)
     return __BLOCK_DO_NOTHING___, None # default return
 
 

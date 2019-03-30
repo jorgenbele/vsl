@@ -34,12 +34,12 @@ def h(a, b):
     __default_nonlocal___ = None
     x = [0]*1
      # new scope 1
-    x = 2 + 3
-    x = 3 - 2
-    x = 2 * 2
-    x = 4 // 2
+    x = (2 + 3)
+    x = (3 - 2)
+    x = (2 * 2)
+    x = (4 // 2)
     x = -6
-    x = ((2 + 3) * 4) // 5
+    x = (((2 + 3) * 4) // 5)
      # __return__ 2
     return 0
     return __BLOCK_DO_NOTHING___, None # default return

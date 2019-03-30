@@ -47,7 +47,7 @@ def main(a, b, c, d, e, f, g):
             nonlocal __default_nonlocal___, x
              # new scope 3
             print( x )
-            x = x - 1
+            x = (x - 1)
             return __BLOCK_DO_NOTHING___, None # default return
         __ret_type___, __ret_val___ = block_3()
         if __ret_type___ == __BLOCK_RETURN___:

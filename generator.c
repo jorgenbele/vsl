@@ -155,6 +155,7 @@ static void expr_instr_type(node_t *left, uint16_t *tl, node_t *right, uint16_t 
 static void emit_label(uint64_t label) { printf("\n_label_%" PRId64 ":\n", label); }
 
 static void emit_instr0_reg(const char *instr, uint8_t reg) { printf("\t%s %s\n", instr, regs[reg]); }
+static void emit_instr0(const char *instr) { printf("\t%s\n", instr); }
 static void emit_instr0_imm(const char *instr, int_type imm) { printf("\t%s _label_%" PRIdit "\n", instr, imm); }
 static void emit_instr0_label(const char *instr, uint64_t label) { printf("\t%s _label_%" PRId64 "\n", instr, label); }
 
@@ -162,7 +163,7 @@ static void emit_instr_reg_reg(const char *instr, uint8_t reg_left, uint8_t reg_
 
 static void emit_instr_param(ir_ctx_t *ctx, symbol_t *func, node_t *n, uint8_t t_n, size_t *stack_top, size_t stack_offset)
 {
-    (void) ctx;
+    (void) ctx; (void) stack_top;
     switch (t_n) {
         //case T_STACK:  printf("%" PRId64 "(%%rsp)", (*stack_top - stack_offset)*sizeof(int_type)); break;
         case T_STACK:  printf("%" PRId64 "(%%rsp)", (stack_offset)*sizeof(int_type)); break;
@@ -227,7 +228,6 @@ static void expression(ir_ctx_t *ctx, symbol_t *func, node_t *expr, size_t *stac
             } else {
                 emit_instr_mem_reg(ctx, func, "movq", arglist->children[i], type, i, stack_top, 0);
             }
-
         }
         printf("\tcall _%s\n", func_ident->data_char_ptr);
         return;
@@ -243,23 +243,11 @@ static void expression(ir_ctx_t *ctx, symbol_t *func, node_t *expr, size_t *stac
         if (left->type == EXPRESSION) expression(ctx, func, left, stack_top);
         else emit_instr_mem_reg(ctx, func, "movq", left, t_left, REG_RAX, stack_top, 0);
 
-        /* Has to be an identifier since '- <number>' const expressions
-         * evaluate to the -<number>. */
+        /* Has to be an identifier since '- <number>' const expressions valuate to the -<number>. */
         switch (*expr->data_char_ptr) {
-            case '-':
-                //emit_instr_mem_reg(ctx, func, "movq", left, t_left, REG_RAX, 0);
-                emit_instr0_reg("negq", REG_RAX);
-                break;
-
-            case '~':
-                //emit_instr_mem_reg(ctx, func, "movq", left, t_left, REG_RAX, 0);
-                emit_instr0_reg("notq", REG_RAX);
-                break;
-
-            default:
-                debug("EXPRESSION NOT IMPLEMENTED: [%d:%d]", expr->line, expr->col);
-                exit(1);
-                return;
+            case '-': emit_instr0_reg("negq", REG_RAX); break;
+            case '~': emit_instr0_reg("notq", REG_RAX); break;
+            default: debug("EXPRESSION NOT IMPLEMENTED: [%d:%d]", expr->line, expr->col); exit(1); return;
         }
         return;
     }
@@ -290,29 +278,28 @@ static void expression(ir_ctx_t *ctx, symbol_t *func, node_t *expr, size_t *stac
 
     switch (*expr->data_char_ptr) {
         case '+':
-            //printf("# addq, %d\n", t_right);
             emit_instr_mem_reg(ctx, func, "movq", left, t_left, REG_RAX, stack_top, left_stack_offset);
             emit_instr_mem_reg(ctx, func, "addq", right, t_right, REG_RAX, stack_top, 0);
             break;
 
         case '-':
-            //printf("# subq, %d\n", t_right);
             emit_instr_mem_reg(ctx, func, "movq", left, t_left, REG_RAX, stack_top, left_stack_offset);
             emit_instr_mem_reg(ctx, func, "subq", right, t_right, REG_RAX, stack_top, 0);
             break;
 
         case '*':
-            //printf("# imulq, %d\n", t_right);
             emit_instr_mem_reg(ctx, func, "movq", left, t_left, REG_RAX, stack_top, left_stack_offset);
             emit_instr_mem_reg(ctx, func, "imulq", right, t_right, REG_RAX, stack_top, 0);
             break;
 
         case '/':
             //printf("# idiv, %d\n", t_right);
-            puts("\txor %edx, %edx");
+            //puts("\txor %rdx, %rdx");
             emit_instr_mem_reg(ctx, func, "movq", right, t_right, REG_RDI, stack_top, 0);   // right -> rdi
             emit_instr_mem_reg(ctx, func, "movq", left, t_left, REG_RAX, stack_top, left_stack_offset);     // left -> rax
-            puts("\tidiv %rdi");
+            //puts("\tcdq");
+            emit_instr0("cqo");
+            emit_instr0_reg("idiv", REG_RDI);
             break;
 
         default:
@@ -425,6 +412,7 @@ static void emit_cmp(ir_ctx_t *ctx, symbol_t *func, const char *rel_str,
         (*stack_top)++;
         t_left = T_STACK;
     }
+
     if (right->type == EXPRESSION)  {
         expression(ctx, func, right, stack_top);
         emit_instr0_reg("pushq", REG_RAX);
@@ -433,9 +421,7 @@ static void emit_cmp(ir_ctx_t *ctx, symbol_t *func, const char *rel_str,
         left_stack_offset = 1;
     }
 
-    /* Load left into %rdi. */
     emit_instr_mem_reg(ctx, func, "movq", left, t_left, REG_RDI, stack_top, left_stack_offset);
-    /* Load right into %rsi. */
     emit_instr_mem_reg(ctx, func, "movq", right, t_right, REG_RSI, stack_top, 0);
 
     /* Cleanup stack before any jump. */
@@ -444,31 +430,19 @@ static void emit_cmp(ir_ctx_t *ctx, symbol_t *func, const char *rel_str,
 
     emit_instr_reg_reg("cmpq", REG_RSI, REG_RDI);
 
-    switch (*rel_str) {
-        case '<':
-            if (!true_label) {
-                emit_instr0_label("jge", *false_label);
-            } else {
-                emit_instr0_label("jl", *true_label);
-                if (false_label) emit_instr0_label("jmp", *false_label);
-            }
-            break;
-        case '>':
-            if (!true_label) {
-                emit_instr0_label("jle", *false_label);
-            } else {
-                emit_instr0_label("jg", *true_label);
-                if (false_label) emit_instr0_label("jmp", *false_label);
-            }
-            break;
-        case '=':
-            if (!true_label) {
-                emit_instr0_label("jne", *false_label);
-            } else {
-                emit_instr0_label("je", *true_label);
-                if (false_label) emit_instr0_label("jmp", *false_label);
-            }
-            break;
+    /* Lookup table mapping relation operator with
+     * the jump instruction. */
+    static const char *jump_instr_map[3][2] = {
+        {"jge", "jl"}, /* < = 60 */
+        {"jne", "je"}, /* = = 61 */
+        {"jle", "jg"}, /* < = 62 */
+    };
+
+    if (!true_label)
+        emit_instr0_label(jump_instr_map[*rel_str - '<'][0], *false_label);
+    else {
+        emit_instr0_label(jump_instr_map[*rel_str - '<'][1], *true_label);
+        if (false_label) emit_instr0_label("jmp", *false_label);
     }
 }
 

@@ -22,7 +22,7 @@ def fibonacci_number(n):
     y = [0]*1
      # new scope 1
     y = 0
-    if n > 2 : y = fibonacci_number((n - 1)) + fibonacci_number((n - 2))
+    if n > 2 : y = (fibonacci_number((n - 1)) + fibonacci_number((n - 2)))
     else:
         y = 1
      # __return__ 2

@@ -22,10 +22,10 @@ def factor(n):
     __default_nonlocal___ = None
     f = [0]*1
      # new scope 1
-    f = n // 2
-    while ( n - (f * (n // f)) > 0 ):
-        f = f - 1
-    if f - 1 > 0 :
+    f = (n // 2)
+    while ( (n - (f * (n // f))) > 0 ):
+        f = (f - 1)
+    if (f - 1) > 0 :
         def block_2():
             nonlocal __default_nonlocal___, n
             nonlocal __default_nonlocal___, f

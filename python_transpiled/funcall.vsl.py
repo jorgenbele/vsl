@@ -29,7 +29,7 @@ def my_function(s, t):
     __default_nonlocal___ = None
     u = [0]*1
      # new scope 1
-    u = (s * s) + (t * t)
+    u = ((s * s) + (t * t))
     print( "Parameter s is", s )
     print( "Parameter t is", t )
     print( "The sum of their squares is", u )
