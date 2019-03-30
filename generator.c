@@ -15,7 +15,7 @@ static const char *param_regs[] = {
 };
 
 static const char *regs[] = {
-    "%rdi", "%rsi", "%rdx", "%rcx", "%r8", "%r9", "%rax"
+    "%rdi", "%rsi", "%rdx", "%rcx", "%r8", "%r9", "%rax", "%rsp", "%rbp"
 };
 
 enum {
@@ -25,7 +25,9 @@ enum {
    REG_RCX = 3,
    REG_R8  = 4,
    REG_R9  = 5,
-   REG_RAX = 6
+   REG_RAX = 6,
+   REG_RSP = 7,
+   REG_RBP = 8,
 };
 
 #define REG(n) regs[(i)]
@@ -137,83 +139,97 @@ static void expr_instr_type(node_t *left, uint16_t *tl, node_t *right, uint16_t 
     expr_instr_type_s(right, tr);
 }
 
-static void emit_instr0_reg(ir_ctx_t *ctx, symbol_t *func, const char *instr, uint8_t reg) { (void) ctx; (void) func; printf("\t%s %s\n", instr, regs[reg]); }
-
-static void emit_instr_reg_reg(ir_ctx_t *ctx, symbol_t *func, const char *instr, uint8_t reg_left, uint8_t reg_right) { (void) ctx; (void) func; printf("\t%s %s, %s\n", instr, regs[reg_left], regs[reg_right]); }
-
-static void emit_instr_mem_reg(ir_ctx_t *ctx, symbol_t *func, const char *instr, node_t *left, uint8_t t_left, uint8_t reg)
+static void emit_instr0_reg(ir_ctx_t *ctx, symbol_t *func, const char *instr, uint8_t reg)
 {
     (void) ctx; (void) func;
-    printf("\t%s ", instr);
-    switch (t_left) {
-        case T_STACK: printf("(%%rsp), "); break;
-        case T_REG: debug("Not supported!"); exit(1); break;
-        case T_PARAM: printf("%" PRId64 "(%%rbp), ", VAR_INDEX_OFFSET(VEC_LEN(func->locals), left->entry->seq)); break;
-        //case T_LOCAL: printf("%" PRId64 "(%%rbp), ", VAR_INDEX_OFFSET(VEC_LEN(func->locals), left->entry->seq)); break;
-        case T_LOCAL: printf("%" PRId64 "(%%rbp), ", VAR_INDEX_OFFSET(VEC_LEN(func->locals), left->entry->seq + func->nparms)); break;
-        case T_GLOBAL: debug("Not supported!"); exit(1); break; // TODO
-        case T_CONST: printf("$%" PRIdit ", ", left->data_integer); break;
-    }
-    printf("%s\n", regs[reg]);
+    printf("\t%s %s\n", instr, regs[reg]);
 }
 
-static void emit_instr_reg_mem(ir_ctx_t *ctx, symbol_t *func, const char *instr, uint8_t reg, node_t *left, uint8_t t_left)
+static void emit_instr_reg_reg(ir_ctx_t *ctx, symbol_t *func, const char *instr,
+                               uint8_t reg_left, uint8_t reg_right) {
+    (void) ctx; (void) func;
+    printf("\t%s %s, %s\n", instr, regs[reg_left], regs[reg_right]);
+}
+
+static void emit_instr_param(ir_ctx_t *ctx, symbol_t *func, node_t *n, uint8_t t_n, size_t *stack_top, size_t stack_offset)
+{
+    switch (t_n) {
+        //case T_STACK:  printf("%" PRId64 "(%%rsp)", (*stack_top - stack_offset)*sizeof(int_type)); break;
+        case T_STACK:  printf("%" PRId64 "(%%rsp)", (stack_offset)*sizeof(int_type)); break;
+        case T_REG:    debug("Not supported!"); exit(1); break;
+        case T_PARAM:  printf("%" PRId64 "(%%rbp)", VAR_INDEX_OFFSET(VEC_LEN(func->locals), n->entry->seq)); break;
+        case T_LOCAL:  printf("%" PRId64 "(%%rbp)", VAR_INDEX_OFFSET(VEC_LEN(func->locals), n->entry->seq + func->nparms)); break;
+        case T_GLOBAL: debug("Not supported!"); exit(1); break; // TODO
+        case T_CONST:  printf("$%" PRIdit, n->data_integer); break;
+    }
+}
+
+static void emit_instr_mem_reg(ir_ctx_t *ctx, symbol_t *func, const char *instr,
+                               node_t *left, uint8_t t_left, uint8_t reg, size_t *stack_top, size_t stack_offset)
+{
+    printf("\t%s ", instr);
+    emit_instr_param(ctx, func, left, t_left, stack_top, stack_offset);
+    printf(", %s\n", regs[reg]);
+}
+
+static void emit_instr_reg_mem(ir_ctx_t *ctx, symbol_t *func, const char *instr, uint8_t reg,
+                               node_t *right, uint8_t t_right, size_t *stack_top, size_t stack_offset)
 {
     (void) ctx; (void) func;
     printf("\t%s ", instr);
     printf("%s, ", regs[reg]);
-
-    switch (t_left) {
-        case T_STACK: printf("(%%rsp)"); break;
-        case T_REG: debug("Not supported!"); exit(1); break;
-        case T_PARAM: printf("%" PRId64 "(%%rbp)", VAR_INDEX_OFFSET(VEC_LEN(func->locals), left->entry->seq)); break;
-        case T_LOCAL: printf("%" PRId64 "(%%rbp)", VAR_INDEX_OFFSET(VEC_LEN(func->locals), left->entry->seq + func->nparms)); break;
-        case T_GLOBAL: debug("Not supported!"); exit(1); break; // TODO
-        case T_CONST: printf("$%" PRIdit, left->data_integer); break;
-    }
+    emit_instr_param(ctx, func, right, t_right, stack_top, stack_offset);
     putchar('\n');
 }
 
-static void emit_instr(ir_ctx_t *ctx, symbol_t *func, const char *instr,
-                       node_t *left, uint8_t t_left, node_t *right, uint8_t t_right)
+static void emit_instr_imm_mem(ir_ctx_t *ctx, symbol_t *func, const char *instr, int_type imm,
+                               node_t *right, uint8_t t_right, size_t *stack_top, size_t stack_offset)
 {
     (void) ctx; (void) func;
-    int64_t left_rsp_offset = 0;
-    if (t_right == T_STACK) left_rsp_offset -= 8;
-
     printf("\t%s ", instr);
-    switch (t_left) {
-        case T_STACK: printf("%" PRId64 "(%%rsp), ", left_rsp_offset); break;
-        case T_REG: debug("Not supported!"); exit(1); break;
-        //case T_LOCAL: printf("%" PRId64 "(%%rbp), ", VAR_INDEX_OFFSET(VEC_LEN(func->locals), left->entry->seq)); break;
-
-        case T_PARAM: printf("%" PRId64 "(%%rbp), ", VAR_INDEX_OFFSET(VEC_LEN(func->locals), left->entry->seq)); break;
-        //case T_LOCAL: printf("%" PRId64 "(%%rbp), ", func->nparms*sizeof(int_type) + VAR_INDEX_OFFSET(VEC_LEN(func->locals), left->entry->seq)); break;
-        case T_LOCAL: printf("%" PRId64 "(%%rbp), ", VAR_INDEX_OFFSET(VEC_LEN(func->locals), left->entry->seq + func->nparms)); break;
-
-        case T_GLOBAL: debug("Not supported!"); exit(1); break; // TODO
-        case T_CONST: printf("$%" PRIdit ", ", left->data_integer); break;
-    }
-
-    switch (t_right) {
-        case T_STACK: printf("(%%rsp), "); break;
-        case T_REG: debug("Not supported!"); exit(1); break;
-        //case T_LOCAL: printf("%" PRId64 "(%%rbp)", VAR_INDEX_OFFSET(VEC_LEN(func->locals), right->entry->seq)); break;
-
-        case T_PARAM: printf("%" PRId64 "(%%rbp)", VAR_INDEX_OFFSET(VEC_LEN(func->locals), left->entry->seq)); break;
-        case T_LOCAL: printf("%" PRId64 "(%%rbp)", VAR_INDEX_OFFSET(VEC_LEN(func->locals), left->entry->seq + func->nparms)); break;
-
-        case T_GLOBAL: debug("Not supported!"); exit(1); break; // TODO
-        case T_CONST: printf("$%" PRIdit, right->data_integer); break;
-    }
+    printf("$%" PRIdit", ", imm);
+    emit_instr_param(ctx, func, right, t_right, stack_top, stack_offset);
     putchar('\n');
 }
+
+static void emit_instr_imm_reg(const char *instr, int_type imm, uint8_t reg)
+{
+    printf("\t%s $%" PRIdit ", %s\n", instr, imm, regs[reg]);
+}
+
+//static void emit_instr(ir_ctx_t *ctx, symbol_t *func, const char *instr,
+//                       node_t *left, uint8_t t_left, node_t *right, uint8_t t_right)
+//{
+//    (void) ctx; (void) func;
+//    int64_t left_rsp_offset = 0;
+//    if (t_right == T_STACK) left_rsp_offset -= 8;
+//
+//    printf("\t%s ", instr);
+//    switch (t_left) {
+//        case T_STACK: printf("%" PRId64 "(%%rsp), ", left_rsp_offset); break;
+//        case T_REG: debug("Not supported!"); exit(1); break;
+//        case T_PARAM: printf("%" PRId64 "(%%rbp), ", VAR_INDEX_OFFSET(VEC_LEN(func->locals), left->entry->seq)); break;
+//        case T_LOCAL: printf("%" PRId64 "(%%rbp), ", VAR_INDEX_OFFSET(VEC_LEN(func->locals), left->entry->seq + func->nparms)); break;
+//        case T_GLOBAL: debug("Not supported!"); exit(1); break; // TODO
+//        case T_CONST: printf("$%" PRIdit ", ", left->data_integer); break;
+//    }
+//
+//    switch (t_right) {
+//        case T_STACK: printf("(%%rsp), "); break;
+//        case T_REG: debug("Not supported!"); exit(1); break;
+//        case T_PARAM: printf("%" PRId64 "(%%rbp)", VAR_INDEX_OFFSET(VEC_LEN(func->locals), right->entry->seq)); break;
+//        case T_LOCAL: printf("%" PRId64 "(%%rbp)", VAR_INDEX_OFFSET(VEC_LEN(func->locals), right->entry->seq + func->nparms)); break;
+//        case T_GLOBAL: debug("Not supported!"); exit(1); break; // TODO
+//        case T_CONST: printf("$%" PRIdit, right->data_integer); break;
+//    }
+//    putchar('\n');
+//}
 
 /* expression:
  *  Creates the assembly representing an expression.
  *  Saves the result rax and uses the registers specified
  *  by indexes in 'regs' as temporary registers. */
-static void expression(ir_ctx_t *ctx, symbol_t *func, node_t *expr, int depth)
+static void expression(ir_ctx_t *ctx, symbol_t *func, node_t *expr, size_t *stack_top)
 {
     if (!strcmp(expr->data_char_ptr, "func_call")) {
         assert(expr->n_children == 2);
@@ -222,7 +238,7 @@ static void expression(ir_ctx_t *ctx, symbol_t *func, node_t *expr, int depth)
         for (size_t i = 0; i < arglist->n_children; i++) {
             uint16_t type = 0;
             expr_instr_type_s(arglist->children[i], &type);
-            emit_instr_mem_reg(ctx, func, "movq", arglist->children[i], type, i);
+            emit_instr_mem_reg(ctx, func, "movq", arglist->children[i], type, i, stack_top, 0);
         }
         printf("\tcall _%s\n", func_ident->data_char_ptr);
         return;
@@ -233,40 +249,29 @@ static void expression(ir_ctx_t *ctx, symbol_t *func, node_t *expr, int depth)
 
         uint16_t t_left = 0;
         expr_instr_type_s(left, &t_left);
-        //uint16_t t_left = left->entry ? (left->entry->type == SYM_GLOBAL_VAR ? T_GLOBAL : T_LOCAL) : 0x0;
 
         /* Evaluate the expression. Results will be stored on the stack. */
-        if (left->type == EXPRESSION)  {
-            expression(ctx, func, left, depth+1);
-            //t_left  = T_STACK;
-        }
+        if (left->type == EXPRESSION) expression(ctx, func, left, stack_top);
+        else emit_instr_mem_reg(ctx, func, "movq", left, t_left, REG_RAX, stack_top, 0);
 
         /* Has to be an identifier since '- <number>' const expressions
          * evaluate to the -<number>. */
-
         switch (*expr->data_char_ptr) {
             case '-':
-                emit_instr_mem_reg(ctx, func, "movq", left, t_left, REG_RAX);
+                //emit_instr_mem_reg(ctx, func, "movq", left, t_left, REG_RAX, 0);
                 emit_instr0_reg(ctx, func, "negq", REG_RAX);
-                //emit_instr0_reg(ctx, func, "pushq", REG_RAX);
-                //(*stack_pos)++;
                 break;
 
             case '~':
-                emit_instr_mem_reg(ctx, func, "movq", left,
-                                   left->entry->type == SYM_GLOBAL_VAR ? T_GLOBAL : T_LOCAL,
-                                   REG_RAX);
+                //emit_instr_mem_reg(ctx, func, "movq", left, t_left, REG_RAX, 0);
                 emit_instr0_reg(ctx, func, "notq", REG_RAX);
-                //emit_instr0_reg(ctx, func, "pushq", REG_RAX);
-                //(*stack_pos)++;
                 break;
 
-        default:
-            debug("EXPRESSION NOT IMPLEMENTED: [%d:%d]", expr->line, expr->col);
-            exit(1);
-            return;
+            default:
+                debug("EXPRESSION NOT IMPLEMENTED: [%d:%d]", expr->line, expr->col);
+                exit(1);
+                return;
         }
-
         return;
     }
 
@@ -274,57 +279,54 @@ static void expression(ir_ctx_t *ctx, symbol_t *func, node_t *expr, int depth)
     node_t *left = expr->children[0];
     node_t *right = expr->children[1];
 
-    /* Evaluate the expression. Results will be stored on the stack. */
-    if (left->type == EXPRESSION)  {
-        printf("# EVALUATING LEFT\n");
-        expression(ctx, func, left, depth+1);
-        printf("# DONE EVALUATING LEFT\n");
-    }
-    if (right->type == EXPRESSION) {
-        printf("# DONE EVALUATING RIGHT\n");
-        expression(ctx, func, right, depth+1);
-    }
-
     uint16_t t_left, t_right;
     t_left = t_right = 0;
     expr_instr_type(left, &t_left, right, &t_right);
+    size_t left_stack_offset = 0;
 
-    if (left->type == EXPRESSION)  t_left  = T_STACK;
-    if (right->type == EXPRESSION) t_right = T_STACK;
+    /* Evaluate the expression. Results will be stored on the stack. */
+    if (left->type == EXPRESSION)  {
+        expression(ctx, func, left, stack_top);
+        puts("\tpushq %rax"); // PUSH TO STACK
+        (*stack_top)++;
+        t_left = T_STACK;
+    }
+    if (right->type == EXPRESSION) {
+        expression(ctx, func, right, stack_top);
+        puts("\tpushq %rax"); // PUSH TO STACK
+        (*stack_top)++;
+        t_right = T_STACK;
+        left_stack_offset = 1;
+    }
 
     switch (*expr->data_char_ptr) {
         case '+':
             printf("# addq, %d\n", t_right);
-            emit_instr_mem_reg(ctx, func, "movq", left, t_left, REG_RDI);   // left -> rdi
-            emit_instr_mem_reg(ctx, func, "addq", right, t_right, REG_RDI); // rdi += right
-            emit_instr_reg_reg(ctx, func, "movq", REG_RDI, REG_RAX);
-            //emit_instr0_reg(ctx, func, "pushq", REG_RDI);
+            emit_instr_mem_reg(ctx, func, "movq", left, t_left, REG_RAX, stack_top, left_stack_offset);
+            emit_instr_mem_reg(ctx, func, "addq", right, t_right, REG_RAX, stack_top, 0);
             break;
 
         case '-':
             printf("# subq, %d\n", t_right);
-            emit_instr_mem_reg(ctx, func, "movq", left, t_left, REG_RDI);   // left -> rdi
-            emit_instr_mem_reg(ctx, func, "subq", right, t_right, REG_RDI); // rdi += right
-            emit_instr_reg_reg(ctx, func, "movq", REG_RDI, REG_RAX);
-            //emit_instr0_reg(ctx, func, "pushq", REG_RDI);
+            emit_instr_mem_reg(ctx, func, "movq", left, t_left, REG_RAX, stack_top, left_stack_offset);
+            emit_instr_mem_reg(ctx, func, "subq", right, t_right, REG_RAX, stack_top, 0);
+            //emit_instr_reg_reg(ctx, func, "movq", REG_RDI, REG_RAX);
             break;
 
         case '*':
             printf("# imulq, %d\n", t_right);
-            emit_instr_mem_reg(ctx, func, "movq", left, t_left, REG_RDI);   // left -> rdi
-            emit_instr_mem_reg(ctx, func, "imul", right, t_right, REG_RDI); // rdi *= right
-            emit_instr_reg_reg(ctx, func, "movq", REG_RDI, REG_RAX);
-            //emit_instr0_reg(ctx, func, "pushq", REG_RDI);
+            emit_instr_mem_reg(ctx, func, "movq", left, t_left, REG_RAX, stack_top, left_stack_offset);
+            emit_instr_mem_reg(ctx, func, "imulq", right, t_right, REG_RAX, stack_top, 0);
+           // emit_instr_reg_mem(ctx, func, "imulq", REG_RAX, right, t_right, stack_top, 0);
+            //emit_instr_reg_reg(ctx, func, "movq", REG_RDI, REG_RAX);
             break;
 
         case '/':
             printf("# idiv, %d\n", t_right);
             puts("\txor %edx, %edx");
-            emit_instr_mem_reg(ctx, func, "movq", right, t_right, REG_RDI);   // right -> rdi
-            emit_instr_mem_reg(ctx, func, "movq", left, t_left, REG_RAX);     // left -> rax
+            emit_instr_mem_reg(ctx, func, "movq", right, t_right, REG_RDI, stack_top, 0);   // right -> rdi
+            emit_instr_mem_reg(ctx, func, "movq", left, t_left, REG_RAX, stack_top, left_stack_offset);     // left -> rax
             puts("\tidiv %rdi");
-            //emit_instr0_reg(ctx, func, "pushq", REG_RAX);
-            //emit_instr_reg_reg(ctx, func, "movq", REG_RDI, REG_RAX);
             break;
 
         default:
@@ -332,56 +334,46 @@ static void expression(ir_ctx_t *ctx, symbol_t *func, node_t *expr, int depth)
             exit(1);
             return;
     }
+
+    if (t_left == T_STACK) { emit_instr_imm_reg("subq", 0x8, REG_RSP); (*stack_top)--;}
+    if (t_right == T_STACK) { emit_instr_imm_reg("subq", 0x8, REG_RSP); (*stack_top)--;}
+    //if (t_left == T_STACK) puts("\tsubq $8, %rsp");
+    //if (t_right == T_STACK) puts("\tsubq $8, %rsp");
     return;
 }
 
-static void assignment(ir_ctx_t *ctx, symbol_t *func, node_t *left, node_t *right)
+static void assignment(ir_ctx_t *ctx, symbol_t *func, node_t *left, node_t *right, size_t *stack_top)
 {
     (void) ctx;
-
     assert(left->type == IDENTIFIER_DATA);
+
+    uint16_t t_left, t_right;
+    t_left = t_right = 0;
+    expr_instr_type(left, &t_left, right, &t_right);
 
     /* Right can be a constant (number), identifier (variable), or expression. */
     if (IS_CONST_TYPE(right->type)) {
         /* Only supported const type. */
         assert(right->type == NUMBER_DATA);
 
-        /* <left> := <right> */
-        //puts("# CONST");
         printf("\t# local variable: %s [%lu] = CONST local %" PRIu64 "\n", left->entry->name, left->entry->seq, right->data_integer);
-        emit_instr(ctx, func, "movq", right, T_CONST, left, T_LOCAL);
-                   //left, left->entry->type == GLOBAL ? T_GLOBAL : T_LOCAL);
+        emit_instr_imm_mem(ctx, func, "movq", right->data_integer, left, t_left, stack_top, 0);
 
     } else if (right->type == IDENTIFIER_DATA) {
-        uint16_t t_left, t_right;
-        expr_instr_type(left, &t_left, right, &t_right);
-
-        /* <left> := <right> */
         puts("# IDENTIFIER_DATA");
-        //emit_instr(ctx, func, "movq",
-        //           right, right->entry->type == GLOBAL ? T_GLOBAL : T_LOCAL,
-        //           left, left->entry->type == GLOBAL ? T_GLOBAL : T_LOCAL);
-        emit_instr(ctx, func, "movq",
-                   right, t_right,
-                   left, t_left);
+        emit_instr_mem_reg(ctx, func, "movq", right, t_right, REG_RAX, stack_top, 0);
+        emit_instr_reg_mem(ctx, func, "movq", REG_RAX, left, t_left, stack_top, 0);
 
     } else if (right->type == EXPRESSION) {
         puts("# BEGIN EXPRESSION");
-        expression(ctx, func, right, 0);
+        expression(ctx, func, right, stack_top);
         puts("# END EXPRESSION");
 
         uint16_t left_t = 0;
         expr_instr_type_s(left, &left_t);
 
         printf("\t# local variable: %s [%lu] = CONST local %" PRIu64 "\n", left->entry->name, left->entry->seq, right->data_integer);
-        emit_instr_reg_mem(ctx, func, "movq", REG_RAX, left, left_t);
-
-        ///* Result is at (%rsp). */
-        //emit_instr0_reg(ctx, func, "popq", REG_RDI);
-        //emit_instr_reg_mem(ctx, func, "movq", REG_RDI, left, left->entry->type == GLOBAL ? T_GLOBAL : T_LOCAL);
-        ////emit_instr(ctx, func, "movq", right, T_STACK, left, T_LOCAL);
-                   //left, left->entry->type == GLOBAL ? T_GLOBAL : T_LOCAL);
-        //puts("\tpopq %rax");
+        emit_instr_reg_mem(ctx, func, "movq", REG_RAX, left, left_t, stack_top, 0);
     }
 }
 
@@ -389,7 +381,7 @@ static void assignment(ir_ctx_t *ctx, symbol_t *func, node_t *left, node_t *righ
  *      Horribly inefficient, but I guess this is how its supposed
  *      to be done in this assignment.
  */
-static void print_statement(ir_ctx_t *ctx, symbol_t *func, node_t *r)
+static void print_statement(ir_ctx_t *ctx, symbol_t *func, node_t *r, size_t *stack_top)
 {
     for (size_t i = 0; i < r->n_children; i++) {
         if (r->children[i]->type == STRING_DATA) {
@@ -397,13 +389,13 @@ static void print_statement(ir_ctx_t *ctx, symbol_t *func, node_t *r)
             printf("\tleaq global_string_%" PRId64 "(%%rip), %%rsi\n", r->children[i]->entry_strings_index);
         } else if (r->children[i]->type == NUMBER_DATA) {
             puts("\tleaq intout(%rip), %rdi");
-            printf("\tmovq $%" PRIdit "%%rdx\n", r->children[i]->data_integer);
+            //printf("\tmovq $%" PRIdit "%%rdx\n", r->children[i]->data_integer);
+            emit_instr_imm_reg("movq", r->children[i]->data_integer, REG_RDX);
         } else if (r->children[i]->type == IDENTIFIER_DATA) {
             uint16_t t = 0;
             expr_instr_type_s(r->children[i], &t);
             puts("\tleaq intout(%rip), %rdi");
-            emit_instr_mem_reg(ctx, func, "movq", r->children[i], t, REG_RSI);
-            //printf("\tmovq $%" PRIdit "%%rdi\n", r->data_integer);
+            emit_instr_mem_reg(ctx, func, "movq", r->children[i], t, REG_RSI, stack_top, 0);
         } else {debug("ILLEGAL type: %s", NODE_TO_TYPE_STRING(r->children[i])); exit(1);}
         puts("\txor %rax, %rax");
         puts("\tcall printf");
@@ -412,15 +404,15 @@ static void print_statement(ir_ctx_t *ctx, symbol_t *func, node_t *r)
     puts("\tcall putchar");
 }
 
-static void rec_traverse(ir_ctx_t *ctx, symbol_t *func, node_t *r)
+static void rec_traverse(ir_ctx_t *ctx, symbol_t *func, node_t *r, size_t *stack_top)
 {
     if (r->type == ASSIGNMENT_STATEMENT) {
-        assignment(ctx, func, r->children[0], r->children[1]);
+        assignment(ctx, func, r->children[0], r->children[1], stack_top);
     } else if (r->type == PRINT_STATEMENT) {
-        print_statement(ctx, func, r);
+        print_statement(ctx, func, r, stack_top);
 
     } else if (r->type == EXPRESSION) {
-        expression(ctx, func, r, 0);
+        expression(ctx, func, r, stack_top); // Result is stored in %rax.
 
     } else if (r->type == RETURN_STATEMENT) {
 
@@ -428,29 +420,21 @@ static void rec_traverse(ir_ctx_t *ctx, symbol_t *func, node_t *r)
         node_t *ret_val = r->children[0];
         if (ret_val->type == EXPRESSION) {
             puts("\t # RETURN EXPRESSION");
-            expression(ctx, func, ret_val, 0);
+            expression(ctx, func, ret_val, stack_top);
         } else {
             puts("\t # RETURN LOCAL/GLOBAL/CONST ");
             uint16_t ret_val_type = 0;
             expr_instr_type_s(ret_val, &ret_val_type);
-            emit_instr_mem_reg(ctx, func, "movq", ret_val, ret_val_type, REG_RAX);
+            emit_instr_mem_reg(ctx, func, "movq", ret_val, ret_val_type, REG_RAX, stack_top, 0);
         }
 
-        //emit_instr0_reg(ctx, func, "popq", REG_RAX);
-        //puts("\tmovq %rdi, %rax");
-        //puts("\tmovq %rbp, %rsp");
-        //puts("\tpopq %rbp");
-        //puts("\tret");
-        
-        //emit_instr0_reg(ctx, func, "popq", REG_RAX);
-        //puts("\tmovq %rdi, %rax");
         puts("\tmovq %rbp, %rsp");
         puts("\tpopq %rbp");
         puts("\tret");
     
     } else {
         for (size_t i = 0; i < r->n_children; i++)
-            rec_traverse(ctx, func, r->children[i]);
+            rec_traverse(ctx, func, r->children[i], stack_top);
     }
 }
 
@@ -491,7 +475,12 @@ static void gen_func(ir_ctx_t *ctx, symbol_t *func)
     /* Reserve params and locals. Params are stored at the bottom
      * values, and locals have the top. */
     uint64_t saved = VEC_LEN(func->locals);
-    printf("\tsubq $%" PRId64 ", %%rsp\n", saved * sizeof(int_type));
+
+    // 16 bytes aligned.
+    uint64_t locals_aligned = saved * sizeof(int_type);
+    locals_aligned += locals_aligned % 16;
+
+    printf("\tsubq $%" PRId64 ", %%rsp\n", locals_aligned);
 
 
     /* Save the params. */
@@ -508,7 +497,9 @@ static void gen_func(ir_ctx_t *ctx, symbol_t *func)
         printf("\tmovq $0, %" PRId64 "(%%rbp)  # zeroing local #%" PRId64 ", %s\n", VAR_INDEX_OFFSET(saved, i), i, local->name);
     }
 
-    rec_traverse(ctx, func, func->node);
+    size_t stack_top = 0;
+    rec_traverse(ctx, func, func->node, &stack_top);
+    assert(stack_top == 0);
 
     /* In case there is no return statement. */
     puts("\txor %rax, %rax");
@@ -521,13 +512,8 @@ static void gen_global(ir_ctx_t *ctx, symbol_t *global)
 {
     switch (global->type) {
         case SYM_GLOBAL_VAR: break;
-
         case SYM_FUNCTION: gen_func(ctx, global); break;
-
-        default:
-            debug("Unexpected symbol: %s\n", global->name);
-            exit(1);
-            break;
+        default: debug("Unexpected symbol: %s\n", global->name); exit(1); break;
     }
 }
 
@@ -575,20 +561,4 @@ void gen_program(ir_ctx_t *ctx)
                            gen_func(ctx, global);
                        }
     );
-
-
-    //for (uint64_t i = 0; i < VEC_LEN(&ctx->names); i++) {
-    //    tlhash_t *t = VEC_GET(&ctx->names, tlhash_t_ptr, i);
-    //    gen_func();
-    //}
-    //assert(!VEC_ERROR(&ctx->strings));
-
-    //FOR_EACH_IN_TLHASH(&ctx->names, e, printf("FOR EACH: %s\n", e->name));
-
-    ///* Put some dummy stuff to keep the skeleton from crashing */
-    //puts(".globl main");
-    //puts(".section .text");
-    //puts("main:");
-    //puts("\tmovq $0, %rax");
-    //puts("\tcall exit");
 }
