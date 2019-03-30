@@ -38,6 +38,7 @@ void ir_ctx_init(ir_ctx_t *ctx)
 
     ctx->seq = 0;
     ctx->label_count = 0;
+    ctx->func_stack_aligned = 0;
 }
 
 #define DESTROY_TLHASH_SYMBS(tlhash_ptr)                        \

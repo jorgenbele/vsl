@@ -44,6 +44,7 @@ y.tab.h: parser.c
 scanner.c: y.tab.h scanner.l
 
 clean:
+	-rm compiler vsl_simplify vsl_simplify_noncorrect vsl2py main vsl_recreate print_symtab
 	-rm -f parser.c scanner.c *.tab.* *.o
 
 purge: clean
