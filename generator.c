@@ -258,9 +258,11 @@ static void assignment(ir_ctx_t *ctx, symbol_t *func, node_t *left, node_t *righ
         /* Only supported const type. */
         assert(right->type == NUMBER_DATA);
 
+        printf("# CONST\n");
         e_imm_mem(ctx, func, "movq", right->data_integer, left, t_left, stack_top, 0);
 
     } else if (right->type == IDENTIFIER_DATA) {
+        printf("# IDENT\n");
         e_mem_reg(ctx, func, "movq", right, t_right, REG_RAX, stack_top, 0);
         e_reg_mem(ctx, func, "movq", REG_RAX, left, t_left, stack_top, 0);
 
@@ -269,7 +271,7 @@ static void assignment(ir_ctx_t *ctx, symbol_t *func, node_t *left, node_t *righ
 
         uint16_t left_t = 0;
         expr_instr_type_s(left, &left_t);
-
+        printf("# EXPR\n");
         e_reg_mem(ctx, func, "movq", REG_RAX, left, left_t, stack_top, 0);
     }
 }
@@ -464,6 +466,14 @@ static void rec_traverse(ir_ctx_t *ctx, symbol_t *func, node_t *r, size_t *stack
  * */
 static void gen_func(ir_ctx_t *ctx, symbol_t *func)
 {
+    printf("\t# def %s(", func->name);
+    for (size_t i = 0; i < func->nparms; i++) {
+        printf("%s%s",
+               VEC_GET(func->locals, symbol_t_ptr, i)->name,
+               i + 1 < func->nparms ? ", " : "");
+    }
+    printf(")\n");
+
     printf("_%s:\n", func->name);
 
     /*
