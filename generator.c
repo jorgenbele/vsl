@@ -9,7 +9,12 @@
 #include "ir.h"
 #include "utils.h"
 
-static const char *regs[7] = {
+
+static const char *param_regs[] = {
+    "%rdi", "%rsi", "%rdx", "%rcx", "%r8", "%r9"
+};
+
+static const char *regs[] = {
     "%rdi", "%rsi", "%rdx", "%rcx", "%r8", "%r9", "%rax"
 };
 
@@ -80,7 +85,7 @@ static void gen_main(symbol_t *main_func)
 
     /* Now the arguments are in order on stack */
     for (uint64_t arg = 0; arg < MIN(6, main_func->nparms); arg++)
-        printf("\tpopq\t%s\n", regs[arg]);
+        printf("\tpopq\t%s\n", param_regs[arg]);
 
     puts("SKIP_ARGS:");
     printf("\tcall\t_%s\n", main_func->name);
@@ -116,26 +121,28 @@ enum {
    T_CONST=0x8,
 };
 
-/* expr_instr_type: Create a representation of the instruction operand types. */
-static void expr_instr_type(node_t *left, uint16_t *tl, node_t *right, uint16_t *tr) {
-    if (left->type == IDENTIFIER_DATA) {
-        if (left->entry->type == SYM_GLOBAL_VAR)     *tl |= T_GLOBAL;
-        else if (left->entry->type == SYM_LOCAL_VAR) *tl |= T_LOCAL;
-        else if (left->entry->type == SYM_PARAMETER) *tl |= T_LOCAL;
-    } else if (left->type == NUMBER_DATA)            *tl |= T_CONST;
-
-    if (right->type == IDENTIFIER_DATA) {
-        if (right->entry->type == SYM_GLOBAL_VAR)     *tr |= T_GLOBAL;
-        else if (right->entry->type == SYM_LOCAL_VAR) *tr |= T_LOCAL;
-        else if (right->entry->type == SYM_PARAMETER) *tr |= T_LOCAL;
-    } else if (right->type == NUMBER_DATA)            *tr |= T_CONST;
-    //return t_left | (((uint16_t) t_right) << 8);
+static void expr_instr_type_s(node_t *n, uint16_t *out)
+{
+    if (n->type == IDENTIFIER_DATA) {
+        if (n->entry->type == SYM_GLOBAL_VAR)     *out |= T_GLOBAL;
+        else if (n->entry->type == SYM_LOCAL_VAR) *out |= T_LOCAL;
+        else if (n->entry->type == SYM_PARAMETER) *out |= T_LOCAL;
+    } else if (n->type == NUMBER_DATA)            *out |= T_CONST;
 }
 
-static void emit_instr0_reg(ir_ctx_t *ctx, symbol_t *func, const char *instr, uint8_t reg) { printf("\t%s %s\n", instr, regs[reg]); }
+/* expr_instr_type: Create a representation of the instruction operand types. */
+static void expr_instr_type(node_t *left, uint16_t *tl, node_t *right, uint16_t *tr) {
+    expr_instr_type_s(left, tl);
+    expr_instr_type_s(right, tr);
+}
+
+static void emit_instr0_reg(ir_ctx_t *ctx, symbol_t *func, const char *instr, uint8_t reg) { (void) ctx; (void) func; printf("\t%s %s\n", instr, regs[reg]); }
+
+static void emit_instr_reg_reg(ir_ctx_t *ctx, symbol_t *func, const char *instr, uint8_t reg_left, uint8_t reg_right) { (void) ctx; (void) func; printf("\t%s %s, %s\n", instr, regs[reg_left], regs[reg_right]); }
 
 static void emit_instr_mem_reg(ir_ctx_t *ctx, symbol_t *func, const char *instr, node_t *left, uint8_t t_left, uint8_t reg)
 {
+    (void) ctx; (void) func;
     printf("\t%s ", instr);
     switch (t_left) {
         case T_STACK: printf("(%%rsp), "); break;
@@ -149,6 +156,7 @@ static void emit_instr_mem_reg(ir_ctx_t *ctx, symbol_t *func, const char *instr,
 
 static void emit_instr_reg_mem(ir_ctx_t *ctx, symbol_t *func, const char *instr, uint8_t reg, node_t *left, uint8_t t_left)
 {
+    (void) ctx; (void) func;
     printf("\t%s ", instr);
     printf("%s, ", regs[reg]);
 
@@ -165,6 +173,7 @@ static void emit_instr_reg_mem(ir_ctx_t *ctx, symbol_t *func, const char *instr,
 static void emit_instr(ir_ctx_t *ctx, symbol_t *func, const char *instr,
                        node_t *left, uint8_t t_left, node_t *right, uint8_t t_right)
 {
+    (void) ctx; (void) func;
     int64_t left_rsp_offset = 0;
     if (t_right == T_STACK) left_rsp_offset -= 8;
 
@@ -191,10 +200,20 @@ static void emit_instr(ir_ctx_t *ctx, symbol_t *func, const char *instr,
  *  Creates the assembly representing an expression.
  *  Saves the result rax and uses the registers specified
  *  by indexes in 'regs' as temporary registers. */
-static void expression(ir_ctx_t *ctx, symbol_t *func, node_t *expr,
-                       const int *regs, const size_t regs_len, int depth)
+static void expression(ir_ctx_t *ctx, symbol_t *func, node_t *expr, int depth)
 {
-    int reg = 0;
+    if (!strcmp(expr->data_char_ptr, "func_call")) {
+        assert(expr->n_children == 2);
+        node_t *func_ident = expr->children[0];
+        node_t *arglist = expr->children[1];
+        for (size_t i = 0; i < arglist->n_children; i++) {
+            uint16_t type = 0;
+            expr_instr_type_s(arglist->children[i], &type);
+            emit_instr_mem_reg(ctx, func, "movq", arglist->children[i], type, i);
+        }
+        printf("\tcall _%s\n", func_ident->data_char_ptr);
+        return;
+    }
 
     if (expr->n_children == 1) {
         node_t *left = expr->children[0];
@@ -203,7 +222,7 @@ static void expression(ir_ctx_t *ctx, symbol_t *func, node_t *expr,
 
         /* Evaluate the expression. Results will be stored on the stack. */
         if (left->type == EXPRESSION)  {
-            expression(ctx, func, left,  regs, regs_len, depth+1);
+            expression(ctx, func, left, depth+1);
             t_left  = T_STACK;
         }
 
@@ -214,7 +233,8 @@ static void expression(ir_ctx_t *ctx, symbol_t *func, node_t *expr,
             case '-':
                 emit_instr_mem_reg(ctx, func, "movq", left, t_left, REG_RAX);
                 emit_instr0_reg(ctx, func, "negq", REG_RAX);
-                emit_instr0_reg(ctx, func, "pushq", REG_RAX);
+                //emit_instr0_reg(ctx, func, "pushq", REG_RAX);
+                //(*stack_pos)++;
                 break;
 
             case '~':
@@ -222,7 +242,8 @@ static void expression(ir_ctx_t *ctx, symbol_t *func, node_t *expr,
                                    left->entry->type == SYM_GLOBAL_VAR ? T_GLOBAL : T_LOCAL,
                                    REG_RAX);
                 emit_instr0_reg(ctx, func, "notq", REG_RAX);
-                emit_instr0_reg(ctx, func, "pushq", REG_RAX);
+                //emit_instr0_reg(ctx, func, "pushq", REG_RAX);
+                //(*stack_pos)++;
                 break;
 
         default:
@@ -241,12 +262,12 @@ static void expression(ir_ctx_t *ctx, symbol_t *func, node_t *expr,
     /* Evaluate the expression. Results will be stored on the stack. */
     if (left->type == EXPRESSION)  {
         printf("# EVALUATING LEFT\n");
-        expression(ctx, func, left,  regs, regs_len, depth+1);
+        expression(ctx, func, left, depth+1);
         printf("# DONE EVALUATING LEFT\n");
     }
     if (right->type == EXPRESSION) {
         printf("# DONE EVALUATING RIGHT\n");
-        expression(ctx, func, right, regs, regs_len, depth+1);
+        expression(ctx, func, right, depth+1);
     }
 
     uint16_t t_left, t_right;
@@ -261,21 +282,24 @@ static void expression(ir_ctx_t *ctx, symbol_t *func, node_t *expr,
             printf("# addq, %d\n", t_right);
             emit_instr_mem_reg(ctx, func, "movq", left, t_left, REG_RDI);   // left -> rdi
             emit_instr_mem_reg(ctx, func, "addq", right, t_right, REG_RDI); // rdi += right
-            emit_instr0_reg(ctx, func, "pushq", REG_RDI);
+            emit_instr_reg_reg(ctx, func, "movq", REG_RDI, REG_RAX);
+            //emit_instr0_reg(ctx, func, "pushq", REG_RDI);
             break;
 
         case '-':
             printf("# subq, %d\n", t_right);
             emit_instr_mem_reg(ctx, func, "movq", left, t_left, REG_RDI);   // left -> rdi
             emit_instr_mem_reg(ctx, func, "subq", right, t_right, REG_RDI); // rdi += right
-            emit_instr0_reg(ctx, func, "pushq", REG_RDI);
+            emit_instr_reg_reg(ctx, func, "movq", REG_RDI, REG_RAX);
+            //emit_instr0_reg(ctx, func, "pushq", REG_RDI);
             break;
 
         case '*':
             printf("# imulq, %d\n", t_right);
             emit_instr_mem_reg(ctx, func, "movq", left, t_left, REG_RDI);   // left -> rdi
             emit_instr_mem_reg(ctx, func, "imul", right, t_right, REG_RDI); // rdi *= right
-            emit_instr0_reg(ctx, func, "pushq", REG_RDI);
+            emit_instr_reg_reg(ctx, func, "movq", REG_RDI, REG_RAX);
+            //emit_instr0_reg(ctx, func, "pushq", REG_RDI);
             break;
 
         case '/':
@@ -284,7 +308,8 @@ static void expression(ir_ctx_t *ctx, symbol_t *func, node_t *expr,
             emit_instr_mem_reg(ctx, func, "movq", right, t_right, REG_RDI);   // right -> rdi
             emit_instr_mem_reg(ctx, func, "movq", left, t_left, REG_RAX);     // left -> rax
             puts("\tidiv %rdi");
-            emit_instr0_reg(ctx, func, "pushq", REG_RAX);
+            //emit_instr0_reg(ctx, func, "pushq", REG_RAX);
+            //emit_instr_reg_reg(ctx, func, "movq", REG_RDI, REG_RAX);
             break;
 
         default:
@@ -321,12 +346,18 @@ static void assignment(ir_ctx_t *ctx, symbol_t *func, node_t *left, node_t *righ
 
     } else if (right->type == EXPRESSION) {
         puts("# BEGIN EXPRESSION");
-        expression(ctx, func, right, regs, sizeof(regs)/sizeof(*regs), 0);
+        expression(ctx, func, right, 0);
         puts("# END EXPRESSION");
-        /* Result is at (%rsp). */
-        emit_instr0_reg(ctx, func, "popq", REG_RDI);
-        emit_instr_reg_mem(ctx, func, "movq", REG_RDI, left, left->entry->type == GLOBAL ? T_GLOBAL : T_LOCAL);
-        //emit_instr(ctx, func, "movq", right, T_STACK, left, T_LOCAL);
+
+        uint16_t left_t = 0;
+        expr_instr_type_s(left, &left_t);
+
+        emit_instr_reg_mem(ctx, func, "movq", REG_RAX, left, left_t);
+
+        ///* Result is at (%rsp). */
+        //emit_instr0_reg(ctx, func, "popq", REG_RDI);
+        //emit_instr_reg_mem(ctx, func, "movq", REG_RDI, left, left->entry->type == GLOBAL ? T_GLOBAL : T_LOCAL);
+        ////emit_instr(ctx, func, "movq", right, T_STACK, left, T_LOCAL);
                    //left, left->entry->type == GLOBAL ? T_GLOBAL : T_LOCAL);
         //puts("\tpopq %rax");
     }
@@ -354,6 +385,8 @@ static void print_statement(ir_ctx_t *ctx, symbol_t *func, node_t *r)
         puts("\txor %rax, %rax");
         puts("\tcall printf");
     }
+    puts("\tmovq $10, %rdi");
+    puts("\tcall putchar");
 }
 
 static void rec_traverse(ir_ctx_t *ctx, symbol_t *func, node_t *r)
@@ -363,12 +396,35 @@ static void rec_traverse(ir_ctx_t *ctx, symbol_t *func, node_t *r)
     } else if (r->type == PRINT_STATEMENT) {
         print_statement(ctx, func, r);
 
+    } else if (r->type == EXPRESSION) {
+        expression(ctx, func, r, 0);
+
     } else if (r->type == RETURN_STATEMENT) {
+
+        assert(r->n_children == 1);
+        node_t *ret_val = r->children[0];
+        if (ret_val->type == EXPRESSION) {
+            puts("\t # RETURN EXPRESSION");
+            expression(ctx, func, ret_val, 0);
+        } else {
+            puts("\t # RETURN LOCAL/GLOBAL/CONST ");
+            uint16_t ret_val_type = 0;
+            expr_instr_type_s(ret_val, &ret_val_type);
+            emit_instr_mem_reg(ctx, func, "movq", ret_val, ret_val_type, REG_RAX);
+        }
+
         //emit_instr0_reg(ctx, func, "popq", REG_RAX);
-        puts("\tmovq %rdi, %rax");
+        //puts("\tmovq %rdi, %rax");
+        //puts("\tmovq %rbp, %rsp");
+        //puts("\tpopq %rbp");
+        //puts("\tret");
+        
+        //emit_instr0_reg(ctx, func, "popq", REG_RAX);
+        //puts("\tmovq %rdi, %rax");
         puts("\tmovq %rbp, %rsp");
         puts("\tpopq %rbp");
         puts("\tret");
+    
     } else {
         for (size_t i = 0; i < r->n_children; i++)
             rec_traverse(ctx, func, r->children[i]);
@@ -405,7 +461,7 @@ static void gen_func(ir_ctx_t *ctx, symbol_t *func)
 
     /* Save %rbp and set %rsp.  */
     puts("\tpushq %rbp");
-    puts("\tmovq %rbp, %rsp");
+    puts("\tmovq %rsp, %rbp");
     assert(sizeof(int_type) == 8); // ...
 
     /* XXXX: Checks for when there are no params and locals? */
@@ -430,32 +486,11 @@ static void gen_func(ir_ctx_t *ctx, symbol_t *func)
     }
 
     rec_traverse(ctx, func, func->node);
-    //return;
 
-
-    /* Evaluate iteratively. */
-    /* VEC(node_t_ptr) stack; */
-    /* VEC_INIT(&stack, node_t_ptr); */
-
-    /* for (size_t i = 0; i < func->node->n_children; i++) */
-    /*     VEC_PUSH(&stack, node_t_ptr, func->node->children[i]); */
-
-    /* while (VEC_LEN(&stack) > 0) { */
-    /*     node_t *n = VEC_POP(&stack, node_t_ptr); */
-    /*     bool val = false; */
-    /* } */
-
-    /* VEC_DESTROY(&stack, node_t_ptr); */
-
-    /* TEST ONLY */
-    /* Return 2. */
-    //puts("\tpopq %rax");
-
-
+    /* In case there is no return statement. */
+    puts("\txor %rax, %rax");
     puts("\tmovq %rbp, %rsp");
     puts("\tpopq %rbp");
-
-    //puts("\tmovq $0, %rax");
     puts("\tret");
 }
 
@@ -492,6 +527,7 @@ void gen_program(ir_ctx_t *ctx)
 
     puts(".section .data");
     symbol_t *main = NULL;
+    uint64_t min_main_seq = ~0;
     FOR_EACH_IN_TLHASH(&ctx->names, global,
                        /* Reserve 8 bytes (quad) for global variables. */
                        if (global->type == SYM_GLOBAL_VAR)
@@ -499,8 +535,10 @@ void gen_program(ir_ctx_t *ctx)
 
                        /* Save a pointer to the main function, that is,
                         * the first function. */
-                       else if (global->type == SYM_FUNCTION && !main)
+                       else if (global->type == SYM_FUNCTION && global->seq < min_main_seq) {
                            main = global;
+                           min_main_seq = global->seq;
+                       }
     );
 
     /* Generate main. */
