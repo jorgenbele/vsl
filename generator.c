@@ -400,6 +400,20 @@ static void if_statement(ir_ctx_t *ctx, symbol_t *func, node_t *relation,
     }
 }
 
+static void while_statement(ir_ctx_t *ctx, symbol_t *func, node_t *relation,
+                         node_t *while_block, size_t *stack_top)
+{
+    uint64_t true_label = ctx->label_count++;
+    uint64_t false_label = ctx->label_count++;
+
+    emit_label(true_label);
+    emit_cmp(ctx, func, relation->data_char_ptr, relation->children[0],
+             relation->children[1], NULL, &false_label, stack_top);
+    rec_traverse(ctx, func, while_block, stack_top);
+    e0_imm("jmp", true_label);
+    emit_label(false_label);
+}
+
 static void rec_traverse(ir_ctx_t *ctx, symbol_t *func, node_t *r, size_t *stack_top)
 {
     switch (r->type) {
@@ -418,6 +432,12 @@ static void rec_traverse(ir_ctx_t *ctx, symbol_t *func, node_t *r, size_t *stack
             node_t *else_block = NULL;
             if (r->n_children == 3) else_block = r->children[2];
             if_statement(ctx, func, r->children[0], r->children[1], else_block, stack_top);
+            break;
+        }
+
+        case WHILE_STATEMENT: {
+            inline_src(r);
+            while_statement(ctx, func, r->children[0], r->children[1], stack_top);
             break;
         }
 
@@ -446,8 +466,8 @@ static void rec_traverse(ir_ctx_t *ctx, symbol_t *func, node_t *r, size_t *stack
                 rec_traverse(ctx, func, r->children[i], stack_top);
             break;
     }
-
 }
+
 
 /* gen_func(): Emits a function. Assumes that this is in the .text section.
  * 1. Emits a label: _<function_name>:
