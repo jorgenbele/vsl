@@ -273,11 +273,11 @@ static void expression(ir_ctx_t *ctx, symbol_t *func, node_t *expr, size_t *stac
     }
 
     if (t_left == T_STACK) {
-        e_imm_reg_nnl("subq", 0x8, REG_RSP); (*stack_top)--;
+        e_imm_reg_nnl("addq", 0x8, REG_RSP); (*stack_top)--;
         e_comment("popping left");
     }
     if (t_right == T_STACK) {
-        e_imm_reg_nnl("subq", 0x8, REG_RSP); (*stack_top)--;
+        e_imm_reg_nnl("addq", 0x8, REG_RSP); (*stack_top)--;
         e_comment("popping right");
     }
     return;
@@ -379,8 +379,8 @@ static void emit_cmp(ir_ctx_t *ctx, symbol_t *func, const char *rel_str,
     e_mem_reg(ctx, func, "movq", right, t_right, REG_RSI, stack_top, 0);
 
     /* Cleanup stack before any jump. */
-    if (t_left == T_STACK) { e_imm_reg_nnl("subq", 0x8, REG_RSP); e_comment("stack cleanup, left"); (*stack_top)--;}
-    if (t_right == T_STACK) { e_imm_reg_nnl("subq", 0x8, REG_RSP); e_comment("stack cleanup, right"); (*stack_top)--;}
+    if (t_left == T_STACK) { e_imm_reg_nnl("addq", 0x8, REG_RSP); e_comment("stack cleanup, left"); (*stack_top)--;}
+    if (t_right == T_STACK) { e_imm_reg_nnl("addq", 0x8, REG_RSP); e_comment("stack cleanup, right"); (*stack_top)--;}
 
     e_reg_reg("cmpq", REG_RSI, REG_RDI);
 
