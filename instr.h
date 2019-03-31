@@ -9,6 +9,8 @@
 #include "ir.h"
 #include "utils.h"
 
+#include "node_src.h"
+
 enum {
   REG_RDI = 0x0,
   REG_RSI = 0x1,
@@ -139,11 +141,11 @@ inline static void e_comment(const char *fmt, ...)
     putchar('\n');
 }
 
-inline static void emit_label_nnl(uint64_t label)                  { printf("\n_label_%" PRId64 ":", label);          }
+inline static void emit_label_nnl(uint64_t label)                  { printf("\n.L%" PRId64 ":", label);          }
 inline static void e0_reg_nnl(const char *instr, uint8_t reg)      { printf("\t%s %s", instr, regs[reg]);             }
 inline static void e0_nnl(const char *instr)                       { printf("\t%s", instr);                           }
-inline static void e0_imm_nnl(const char *instr, int_type imm)     { printf("\t%s _label_%" PRIdit "", instr, imm);   }
-inline static void e0_label_nnl(const char *instr, uint64_t label) { printf("\t%s _label_%" PRId64 "", instr, label); }
+inline static void e0_imm_nnl(const char *instr, int_type imm)     { printf("\t%s .L%" PRIdit "", instr, imm);   }
+inline static void e0_label_nnl(const char *instr, uint64_t label) { printf("\t%s .L%" PRId64 "", instr, label); }
 inline static void e_reg_reg_nnl(const char *instr, uint8_t reg_left, uint8_t reg_right) { printf("\t%s %s, %s", instr, regs[reg_left], regs[reg_right]); }
 inline static void e_imm_reg_nnl(const char *instr, int_type imm, uint8_t reg) { printf("\t%s $%" PRIdit ", %s", instr, imm, regs[reg]); }
 
@@ -154,6 +156,37 @@ inline static void e0_imm(const char *instr, int_type imm)     { e0_imm_nnl(inst
 inline static void e0_label(const char *instr, uint64_t label) { e0_label_nnl(instr, label); putchar('\n'); }
 inline static void e_reg_reg(const char *instr, uint8_t reg_left, uint8_t reg_right) { e_reg_reg_nnl(instr, reg_left, reg_right); putchar('\n'); }
 inline static void e_imm_reg(const char *instr, int_type imm, uint8_t reg) { e_imm_reg_nnl(instr, imm, reg); putchar('\n'); }
+
+
+inline static void e_expr_comment(node_t *expr)
+{
+    printf(" # ");
+    src_newline = SRC_NEVER_NEWLINE;
+    node_print_expression(expr);
+    putchar('\n');
+}
+
+inline static void e_param_comment(node_t *left, uint8_t t_left, node_t *right, uint8_t t_right)
+{
+    if (!right) {
+        if (t_left == T_CONST ) {
+            e_comment("%" PRIdit, left->data_integer);
+        } else if (left->entry) {
+            e_comment("%s", left->entry->name);
+        }
+        return;
+    }
+
+    if (t_left == T_CONST && t_right == T_CONST) {
+        e_comment("%" PRIdit ", %" PRIdit, left->data_integer, right->data_integer);
+    } else if (t_left == T_CONST) {
+        e_comment("%" PRIdit ", %s", left->data_integer, right->entry->name);
+    } else if (t_left == T_CONST) {
+        e_comment("%" PRIdit ", %s", left->entry->name, right->data_integer);
+    } else {
+        e_comment("%s, %s", left->entry->name, right->entry->name);
+    }
+}
 
 inline static void e_param(ir_ctx_t *ctx, symbol_t *func, node_t *n, uint8_t t_n, size_t *stack_top, size_t stack_offset)
 {
@@ -212,6 +245,7 @@ inline static void e0_mem(ir_ctx_t *ctx, symbol_t *func, const char *instr,
                                node_t *left, uint8_t t_left, size_t *stack_top, size_t stack_offset)
 {
     e0_mem_nnl(ctx, func, instr, left, t_left, stack_top, stack_offset);
+    e_param_comment(left, t_left, NULL, 0);
     putchar('\n');
 }
 
@@ -219,6 +253,7 @@ inline static void e_mem_reg(ir_ctx_t *ctx, symbol_t *func, const char *instr,
                                node_t *left, uint8_t t_left, uint8_t reg, size_t *stack_top, size_t stack_offset)
 {
     e_mem_reg_nnl(ctx, func, instr, left, t_left, reg, stack_top, stack_offset);
+    e_param_comment(left, t_left, NULL, 0);
     putchar('\n');
 }
 
@@ -226,6 +261,7 @@ inline static void e_reg_mem(ir_ctx_t *ctx, symbol_t *func, const char *instr, u
                                node_t *right, uint8_t t_right, size_t *stack_top, size_t stack_offset)
 {
     e_reg_mem_nnl(ctx, func, instr, reg, right, t_right, stack_top, stack_offset);
+    e_param_comment(right, t_right, NULL, 0);
     putchar('\n');
 }
 
@@ -233,6 +269,7 @@ inline static void e_imm_mem(ir_ctx_t *ctx, symbol_t *func, const char *instr, i
                                node_t *right, uint8_t t_right, size_t *stack_top, size_t stack_offset)
 {
     e_imm_mem_nnl(ctx, func, instr, imm, right, t_right, stack_top, stack_offset);
+    e_param_comment(right, t_right, NULL, 0);
     putchar('\n');
 }
 

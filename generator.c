@@ -127,15 +127,18 @@ static void funcall(ir_ctx_t *ctx, symbol_t *func,
         uint16_t type = instr_type(arglist->children[i]);
         if (arglist->children[i]->type == EXPRESSION) {
             expression(ctx, func, arglist->children[i], stack_top);
-            e_reg_reg("movq", REG_RAX, i);
+            e_reg_reg_nnl("movq", REG_RAX, i);
+            e_expr_comment(arglist->children[i]);
         } else {
-            e_mem_reg(ctx, func, "movq", arglist->children[i], type, i, stack_top, 0);
+            e_mem_reg_nnl(ctx, func, "movq", arglist->children[i], type, i, stack_top, 0);
+            e_param_comment(arglist->children[i], type, NULL, 0);
         }
     }
 
+    const size_t stack_params = arglist->n_children - i;
     /* Make sure that the stack is 16 bytes aligned. */
-    if ((arglist->n_children - N_PARAM_REGS) % 2 != 0) {
-        e_imm_reg("subq", 8, REG_RSP);
+    if ((stack_params*8) % 16 != 0) {
+        e_imm_reg_nnl("subq", 8, REG_RSP); e_comment("stack alignment to 16 bytes");
         stack_off += 8;
     }
 
@@ -148,9 +151,25 @@ static void funcall(ir_ctx_t *ctx, symbol_t *func,
 
         if (child->type == EXPRESSION) {
             expression(ctx, func, child, stack_top);
-            e0_reg("pushq", REG_RAX);
+            //e0_reg_nnl("pushq", REG_RAX);
+            e_imm_reg_nnl("subq", 8, REG_RSP);
+            e_comment("same as pushq");
+            printf("\tmovq %%rax, 0(%%rsp)\n");
+            //e0_imm_reg_nnl("movq", 8, REG_RSP);
+            //e_expr_comment(child);
         } else {
-            e0_mem(ctx, func, "pushq", child, type, stack_top, 0);
+            //e0_mem_nnl(ctx, func, "pushq", child, type, stack_top, 0);
+            //e_param_comment(child, type, NULL, 0);
+
+            e_imm_reg_nnl("subq", 8, REG_RSP);
+            e_comment("same as pushq");
+            printf("\tmovq %%rax, 0(%%rsp)\n");
+            printf("\tmovq ");
+            e_param(ctx, func, child, type, stack_top, 0);
+            printf(", 0(%%rsp)\n");
+
+            //e0_mem_nnl(ctx, func, "pushq", child, type, stack_top, 0);
+
         }
         stack_off += 8;
     }
@@ -158,7 +177,10 @@ static void funcall(ir_ctx_t *ctx, symbol_t *func,
     printf("\tcall _%s\n", func_ident->data_char_ptr);
 
     /* Reset stack to before call */
-    e_imm_reg("addq", stack_off, REG_RSP);
+    if (stack_off) {
+        e_imm_reg_nnl("addq", stack_off, REG_RSP);
+        e_comment("resetting stack alignment");
+    }
 }
 
 /* expression():
@@ -207,13 +229,15 @@ static void expression(ir_ctx_t *ctx, symbol_t *func, node_t *expr, size_t *stac
     /* Evaluate the expression. Results will be stored on the stack. */
     if (left->type == EXPRESSION)  {
         expression(ctx, func, left, stack_top);
-        e0_reg("pushq", REG_RAX);
+        e0_reg_nnl("pushq", REG_RAX);
+        e_comment("pushing left");
         (*stack_top)++;
         t_left = T_STACK;
     }
     if (right->type == EXPRESSION) {
         expression(ctx, func, right, stack_top);
-        e0_reg("pushq", REG_RAX);
+        e0_reg_nnl("pushq", REG_RAX);
+        e_comment("pushing right");
         (*stack_top)++;
         t_right = T_STACK;
         left_stack_offset = 1;
@@ -248,8 +272,14 @@ static void expression(ir_ctx_t *ctx, symbol_t *func, node_t *expr, size_t *stac
             return;
     }
 
-    if (t_left == T_STACK) { e_imm_reg("subq", 0x8, REG_RSP); (*stack_top)--;}
-    if (t_right == T_STACK) { e_imm_reg("subq", 0x8, REG_RSP); (*stack_top)--;}
+    if (t_left == T_STACK) {
+        e_imm_reg_nnl("subq", 0x8, REG_RSP); (*stack_top)--;
+        e_comment("popping left");
+    }
+    if (t_right == T_STACK) {
+        e_imm_reg_nnl("subq", 0x8, REG_RSP); (*stack_top)--;
+        e_comment("popping right");
+    }
     return;
 }
 
@@ -349,8 +379,8 @@ static void emit_cmp(ir_ctx_t *ctx, symbol_t *func, const char *rel_str,
     e_mem_reg(ctx, func, "movq", right, t_right, REG_RSI, stack_top, 0);
 
     /* Cleanup stack before any jump. */
-    if (t_left == T_STACK) { e_imm_reg("subq", 0x8, REG_RSP); (*stack_top)--;}
-    if (t_right == T_STACK) { e_imm_reg("subq", 0x8, REG_RSP); (*stack_top)--;}
+    if (t_left == T_STACK) { e_imm_reg_nnl("subq", 0x8, REG_RSP); e_comment("stack cleanup, left"); (*stack_top)--;}
+    if (t_right == T_STACK) { e_imm_reg_nnl("subq", 0x8, REG_RSP); e_comment("stack cleanup, right"); (*stack_top)--;}
 
     e_reg_reg("cmpq", REG_RSI, REG_RDI);
 
@@ -505,7 +535,8 @@ static void gen_func(ir_ctx_t *ctx, symbol_t *func)
     locals_aligned += locals_aligned % 16;
 
     /* Reserve space for variables + alignment. */
-    e_imm_reg("subq", locals_aligned, REG_RSP);
+    e_imm_reg_nnl("subq", locals_aligned, REG_RSP);
+    e_comment("reserve space for vars, 16 bytes aligned");
     const size_t reg_params = MIN(N_PARAM_REGS, func->nparms);
 
     /* Save parameters passed by registers in reverse order. */
