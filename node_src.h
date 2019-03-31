@@ -16,10 +16,14 @@
  */
 void node_print_source(node_t *root);
 void node_print_statement(node_t *n);
+void node_print_expression(node_t *n);
+
+#define SRC_NEVER_NEWLINE 0x2
+#define SRC_ALWAYS_NEWLINE 0x1
 
 /* Can be set to override the default: 1. */
 extern FILE *src_print_file;
 extern char *src_line_prefix;
-extern int src_always_newline;
+extern int src_newline;
 
 #endif /* __NODE_SRC_H_ */

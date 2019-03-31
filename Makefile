@@ -2,13 +2,9 @@
 LEX=flex
 YACC=bison
 YFLAGS+=--defines=y.tab.h -o y.tab.c -r all
-CFLAGS+=-std=c11 -g -D_POSIX_C_SOURCE=200809L -Wall -Wextra -Wpedantic # -DYYSTYPE="void *" # -Wno-incompatible-pointer-types -Wno-int-to-pointer-cast # -DDEBUG
-#CFLAGS+=-Wno-extra-semi -Wno-unneeded-internal-declaration
-#CFLAGS+=-Wno-unused-command-line-argument
+CFLAGS+=-std=c11 -g -D_POSIX_C_SOURCE=200809L -Wall -Wextra -Wpedantic
 LDLIBS+=-lc
-#CC=musl-clang
 CC=clang
-#CC=gcc
 
 .PHONEY: main vsl_simplify vsl2py vsl_recreate clean purge rebuild
 
@@ -19,11 +15,11 @@ compiler: compiler.c parser.o scanner.o nodetypes.o node.o utils.o tree.o tlhash
 #vsl_simplify: vsl_simplify.c parser.o scanner.o nodetypes.o node.o utils.o tree.o node_python_src.o
 
 vsl_simplify: vsl_simplify.c parser.c scanner.c nodetypes.c node.c utils.c tree.c node_python_src.c
-# Requires recompilation as it uses different compile-time flags.
+    # Requires recompilation as it uses different compile-time flags.
 	clang -o vsl_simplify vsl_simplify.c parser.c scanner.c nodetypes.c node.c utils.c tree.c node_python_src.c -DUSE_TREE_CORRECT_RULES
 
 vsl_simplify_noncorrect: vsl_simplify.c parser.c scanner.c nodetypes.c node.c utils.c tree.c node_python_src.c
-# Requires recompilation as it uses different compile-time flags.
+    # Requires recompilation as it uses different compile-time flags.
 	clang -o vsl_simplify_noncorrect vsl_simplify.c parser.c scanner.c nodetypes.c node.c utils.c tree.c node_python_src.c
 
 vsl2py: vsl2py.c parser.o scanner.o nodetypes.o node.o utils.o tree.o node_python_src.o
@@ -38,16 +34,15 @@ vsl_recreate: vsl_recreate.c parser.o scanner.o nodetypes.o node.o utils.o tree.
 print_symtab: print_symtab.c parser.o scanner.o nodetypes.o node.o utils.o tree.o node_src.o ir.o tlhash.o
 
 # Requires recompilation as it uses different compile-time flags.
-	clang -g -o print_symtab print_symtab.c parser.c scanner.c nodetypes.c node.c utils.c tree.c node_python_src.c ir.c tlhash.c
+#	clang -g -o print_symtab print_symtab.c parser.c scanner.c nodetypes.c node.c utils.c tree.c node_python_src.c ir.c tlhash.c
 
 y.tab.h: parser.c
 scanner.c: y.tab.h scanner.l
 
 clean:
-	-rm compiler vsl_simplify vsl_simplify_noncorrect vsl2py main vsl_recreate print_symtab
 	-rm -f parser.c scanner.c *.tab.* *.o
 
 purge: clean
-	-rm -f main vsl_simplify vsl2py vsl_recreate print_symtab
+	-rm -f compiler main vsl_simplify vsl2py vsl_recreate print_symtab
 
-rebuild: clean purge main vsl_simplify vsl2py vsl_recreate print_symtab y.tab.h
+rebuild: clean purge all main vsl_simplify vsl2py vsl_recreate print_symtab y.tab.h

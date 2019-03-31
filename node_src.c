@@ -8,7 +8,7 @@
 
 /* List of globals. */
 FILE *src_print_file = NULL;
-int src_always_newline = 0;
+int src_newline = 0;
 char *src_line_prefix = "";
 
 /* List of static variables. */
@@ -20,7 +20,7 @@ static bool need_sep = false;
 static int block_depth = 0;
 static int expression_depth = 0;
 
-#define NEWLINE do { need_sep = false; emit_str("\n"); emit_str(src_line_prefix); cur_line++; cur_col = 0; } while(0)
+#define NEWLINE do { if (src_newline == SRC_NEVER_NEWLINE) { break; } need_sep = false; emit_str("\n"); emit_str(src_line_prefix); cur_line++; cur_col = 0; } while(0)
 
 /* Function prototypes. */
 static void emit_expression(const node_t *n);
@@ -286,13 +286,13 @@ static void emit_node(const node_t *n)
 void node_print_statement(node_t *n)
 {
     emit_statement(n);
-    if (src_always_newline && cur_col) NEWLINE;
+    if (src_newline == SRC_ALWAYS_NEWLINE && cur_col) NEWLINE;
 }
 
 void node_print_expression(node_t *n)
 {
     emit_expression(n);
-    if (src_always_newline && cur_col) NEWLINE;
+    if (src_newline == SRC_ALWAYS_NEWLINE && cur_col) NEWLINE;
 }
 
 void node_print_source(node_t *n)

@@ -5,27 +5,23 @@
 #include <assert.h>
 #include <inttypes.h>
 
-
 #include "instr.h"
 #include "ir.h"
 #include "utils.h"
 
 #include "node_src.h"
 
-/* Local variable offset. */
-#define VAR_INDEX_OFFSET(saved, index) \
-    (-((saved)*sizeof(int_type)) + (index)*sizeof(int_type))
-
 /* inline_src: Generate comments of source code in the
  *             output assembly code. */
 static void inline_src(node_t *node)
 {
-    src_always_newline = 1;
+    src_newline = SRC_NEVER_NEWLINE;
+    src_line_prefix = "\t";
 
-    printf("\n/*\n");
+    printf("\n\t#");
     if (node->type == EXPRESSION) node_print_expression(node);
     else node_print_statement(node);
-    printf("\n*/\n");
+    printf("\n");
 }
 
 static void gen_strtable(ir_ctx_t *ctx)
@@ -36,10 +32,9 @@ static void gen_strtable(ir_ctx_t *ctx)
     puts("\tstrout: .string \"%s \"");
     puts("\terrout: .string \"Wrong number of arguments\"");
 
-    /* TODO: Strings. */
     for (uint64_t i = 0; i < VEC_LEN(&ctx->strings); i++)
         printf("\tglobal_string_%" PRId64 ": .string %s\n", i, VEC_GET(&ctx->strings, ir_str, i));
-        //printf("\tglobal_string_%d: .string \"%s\"\n", i, VEC_GET(&ctx->strings, ir_str, i));
+
     assert(!VEC_ERROR(&ctx->strings));
 }
 
@@ -48,52 +43,50 @@ static void gen_main(symbol_t *main_func)
     puts(".globl main");
     puts("main:");
 
-    puts("\tpushq %rbp");
-    puts("\tmovq %rsp, %rbp");
+    e0_reg("pushq", REG_RBP);
+    e_reg_reg("movq", REG_RSP, REG_RBP);
 
-    puts("\tsubq $1, %rdi");
-    printf("\tcmpq $%zu,%%rdi\n", main_func->nparms);
+    e_imm_reg("subq", 1, REG_RDI);
+    e_imm_reg("cmpq", main_func->nparms, REG_RDI);
     puts("\tjne ABORT");
-    puts("\tcmpq $0, %rdi");
+    e_imm_reg("cmpq", 0, REG_RDI);
     puts("\tjz SKIP_ARGS");
 
-    puts("\tmovq %rdi, %rcx");
-    printf("\taddq $%zu, %%rsi\n", sizeof(int_type)*main_func->nparms);
+    e_reg_reg("movq", REG_RDI, REG_RCX);
+    e_imm_reg("addq", sizeof(int_type)*main_func->nparms, REG_RSI);
     puts("PARSE_ARGV:");
-    puts("\tpushq %rcx");
-    puts("\tpushq %rsi");
+    e0_reg("pushq", REG_RCX);
+    e0_reg("pushq", REG_RSI);
 
     puts("\tmovq (%rsi), %rdi");
-    puts("\tmovq $0, %rsi");
-    puts("\tmovq $10, %rdx");
+    e_imm_reg("movq", 0, REG_RSI);
+    e_imm_reg("movq", 10, REG_RDX);
     puts("\tcall strtol");
 
-    /*  Now a new argument is an integer in rax */
-    puts("\tpopq %rsi");
-    puts("\tpopq %rcx");
-    puts("\tpushq %rax");
-    puts("\tsubq $8, %rsi");
+    /* Now a new argument is an integer in rax. */
+    e0_reg("popq", REG_RSI);
+    e0_reg("popq", REG_RCX);
+    e0_reg("pushq", REG_RAX);
+    e_imm_reg("subq", 8, REG_RSI);
     puts("\tloop PARSE_ARGV");
 
-    /* Now the arguments are in order on stack */
+    /* Now the arguments are in order on stack. */
     for (uint64_t arg = 0; arg < MIN(6, main_func->nparms); arg++)
-        printf("\tpopq\t%s\n", param_regs[arg]);
+        e0_reg("popq", arg);
 
     puts("SKIP_ARGS:");
     printf("\tcall\t_%s\n", main_func->name);
 
     puts("\tjmp END");
     puts("ABORT:");
-    puts("\tlea errout(%rip), %rdi"); // NOTE: MODIFIED!
+    puts("\tlea errout(%rip), %rdi");
     puts("\tcall puts");
 
     puts("END:");
-    puts("\tmovq %rax, %rdi");
+    e_reg_reg("movq", REG_RAX, REG_RDI);
     puts("\tcall exit");
     putchar('\n');
 }
-
-#define IS_CONST_TYPE(node_type) ((node_type) == NUMBER_DATA)
 
 
 /* PROTOTYPE. */
@@ -120,7 +113,6 @@ static void funcall(ir_ctx_t *ctx, symbol_t *func,
             e_mem_reg(ctx, func, "movq", arglist->children[i], type, i, stack_top, 0);
         }
     }
-
 
     /* Make sure that the stack is 16 bytes aligned. */
     if ((arglist->n_children - N_PARAM_REGS) % 2 != 0) {
@@ -253,16 +245,15 @@ static void assignment(ir_ctx_t *ctx, symbol_t *func, node_t *left, node_t *righ
     t_left = t_right = 0;
     expr_instr_type(left, &t_left, right, &t_right);
 
+#define IS_CONST_TYPE(node_type) ((node_type) == NUMBER_DATA)
+
     /* Right can be a constant (number), identifier (variable), or expression. */
     if (IS_CONST_TYPE(right->type)) {
         /* Only supported const type. */
         assert(right->type == NUMBER_DATA);
-
-        printf("# CONST\n");
         e_imm_mem(ctx, func, "movq", right->data_integer, left, t_left, stack_top, 0);
 
     } else if (right->type == IDENTIFIER_DATA) {
-        printf("# IDENT\n");
         e_mem_reg(ctx, func, "movq", right, t_right, REG_RAX, stack_top, 0);
         e_reg_mem(ctx, func, "movq", REG_RAX, left, t_left, stack_top, 0);
 
@@ -286,12 +277,12 @@ static void print_statement(ir_ctx_t *ctx, symbol_t *func, node_t *r, size_t *st
     for (size_t i = 0; i < r->n_children; i++) {
         switch (r->children[i]->type) {
             case STRING_DATA:
-                puts("\tleaq strout(%rip), %rdi");
+                e0("leaq strout(%rip), %rdi");
                 printf("\tleaq global_string_%" PRId64 "(%%rip), %%rsi\n", r->children[i]->entry_strings_index);
                 break;
 
             case NUMBER_DATA:
-                puts("\tleaq intout(%rip), %rdi");
+                e0("leaq intout(%rip), %rdi");
                 //printf("\tmovq $%" PRIdit "%%rdx\n", r->children[i]->data_integer);
                 e_imm_reg("movq", r->children[i]->data_integer, REG_RDX);
                 break;
@@ -299,13 +290,13 @@ static void print_statement(ir_ctx_t *ctx, symbol_t *func, node_t *r, size_t *st
             case IDENTIFIER_DATA: {
                 uint16_t t = 0;
                 expr_instr_type_s(r->children[i], &t);
-                puts("\tleaq intout(%rip), %rdi");
+                e0("leaq intout(%rip), %rdi");
                 e_mem_reg(ctx, func, "movq", r->children[i], t, REG_RSI, stack_top, 0);
                 break;
             }
             case EXPRESSION: {
                 expression(ctx, func, r->children[i], stack_top);
-                puts("\tleaq intout(%rip), %rdi");
+                e0("leaq intout(%rip), %rdi");
                 e_reg_reg("movq", REG_RAX, REG_RSI);
                 break;
             }
@@ -314,17 +305,16 @@ static void print_statement(ir_ctx_t *ctx, symbol_t *func, node_t *r, size_t *st
                 exit(1);
                 break;
         }
-
         e_reg_reg("xor", REG_RAX, REG_RAX);
-        puts("\tcall printf");
+        e0("call printf");
     }
     e_imm_reg("movq", 10, REG_RDI);
-    puts("\tcall putchar");
+    e0("call putchar");
 }
 
 static void emit_cmp(ir_ctx_t *ctx, symbol_t *func, const char *rel_str,
                      node_t *left, node_t *right,
-                     uint64_t *true_label, uint64_t *false_label, size_t *stack_top)
+                     const uint64_t *true_label, const uint64_t *false_label, size_t *stack_top)
 {
     uint16_t t_left, t_right;
     t_left = t_right = 0;
@@ -378,7 +368,7 @@ static void if_statement(ir_ctx_t *ctx, symbol_t *func, node_t *relation,
                          node_t *true_block, node_t *else_block, size_t *stack_top)
 {
     if (!else_block) {
-        uint64_t false_label = ctx->label_count++;
+        const uint64_t false_label = ctx->label_count++;
 
         /* No true label since the true block is directly following this block. */
         emit_cmp(ctx, func, relation->data_char_ptr, relation->children[0],
@@ -387,8 +377,8 @@ static void if_statement(ir_ctx_t *ctx, symbol_t *func, node_t *relation,
         emit_label(false_label); /* End of if-true block. */
 
     } else {
-        uint64_t false_label = ctx->label_count++;
-        uint64_t end_if_label = ctx->label_count++;
+        const uint64_t false_label = ctx->label_count++;
+        const uint64_t end_if_label = ctx->label_count++;
 
         emit_cmp(ctx, func, relation->data_char_ptr, relation->children[0],
                  relation->children[1], NULL, &false_label, stack_top);
@@ -403,8 +393,8 @@ static void if_statement(ir_ctx_t *ctx, symbol_t *func, node_t *relation,
 static void while_statement(ir_ctx_t *ctx, symbol_t *func, node_t *relation,
                          node_t *while_block, size_t *stack_top)
 {
-    uint64_t true_label = ctx->label_count++;
-    uint64_t false_label = ctx->label_count++;
+    const uint64_t true_label = ctx->label_count++;
+    const uint64_t false_label = ctx->label_count++;
 
     VEC_PUSH(&ctx->labels, label_t, true_label);
 
@@ -478,23 +468,10 @@ static void rec_traverse(ir_ctx_t *ctx, symbol_t *func, node_t *r, size_t *stack
 }
 
 
-/* gen_func(): Emits a function. Assumes that this is in the .text section.
- * 1. Emits a label: _<function_name>:
- * 2. Setup stack frame: push rsp, ...
- * 3. Generate assembly code that is equivalent with the AST.
- *
- * Function calls:
- *      1. Setup parameter registers. (rax, rdi, rsi, rdx, ...)
- *      2. Use the 'call _<function_name>' to call the functions.
- *      3. Correctly assign the return value to a variable IF the
- *         AST specifies it as such. (Stored in rax).
- *
- * Returns:
- *      1. Set rax to be the return value, restore rsp (by pop).
- *
- * */
+/* gen_func(): Emits a function. Assumes that this is in the .text section. */
 static void gen_func(ir_ctx_t *ctx, symbol_t *func)
 {
+    /* Assembly comment with function name. */
     printf("\t# def %s(", func->name);
     for (size_t i = 0; i < func->nparms; i++) {
         printf("%s%s",
@@ -503,6 +480,7 @@ static void gen_func(ir_ctx_t *ctx, symbol_t *func)
     }
     printf(")\n");
 
+    /* Function label. */
     printf("_%s:\n", func->name);
 
     /*
@@ -515,22 +493,21 @@ static void gen_func(ir_ctx_t *ctx, symbol_t *func)
      */
 
     /* Save %rbp and set %rsp.  */
-    puts("\tpushq %rbp");
-    puts("\tmovq %rsp, %rbp");
+    e0_reg("pushq", REG_RBP);
+    e_reg_reg("movq", REG_RSP, REG_RBP);
     assert(sizeof(int_type) == 8); // ...
 
     /* XXXX: Checks for when there are no params and locals? */
     /* Reserve params and locals. Params are stored at the bottom
      * values, and locals have the top. */
-    uint64_t saved = VEC_LEN(func->locals);
+    const uint64_t saved = VEC_LEN(func->locals);
 
     /* 16 bytes aligned. */
     uint64_t locals_aligned = saved * sizeof(int_type);
     locals_aligned += locals_aligned % 16;
 
     /* Reserve space for variables + alignment. */
-    printf("\tsubq $%" PRId64 ", %%rsp\n", locals_aligned);
-
+    e_imm_reg("subq", locals_aligned, REG_RSP);
     const size_t reg_params = MIN(N_PARAM_REGS, func->nparms);
 
     /* Save parameters passed by registers in reverse order. */
@@ -539,7 +516,6 @@ static void gen_func(ir_ctx_t *ctx, symbol_t *func)
         symbol_t *param = VEC_GET(func->locals, symbol_t_ptr, i-1);
         printf("\tmovq %s, %" PRId64 "(%%rbp)  # saving param #%" PRId64 ", %s\n",
                param_regs[i-1], param_rsp_offset(func, param), i-1, param->name);
-               //param_regs[i-1], (-reg_params+i)*8, i-1, param->name);
         assert(param->type == SYM_PARAMETER);
         i--;
     }
@@ -551,7 +527,6 @@ static void gen_func(ir_ctx_t *ctx, symbol_t *func)
         symbol_t *local = VEC_GET(func->locals, symbol_t_ptr, i-1);
         printf("\tmovq $0, %" PRId64 "(%%rbp)  # saving local #%" PRId64 ", %s\n",
                local_rsp_offset(func, local), i-1, local->name);
-               // -(i-reg_params)*8, i-1, local->name);
         assert(local->type == SYM_LOCAL_VAR);
         i--;
     }
@@ -565,10 +540,10 @@ static void gen_func(ir_ctx_t *ctx, symbol_t *func)
     node_t *statement_list = func_block->children[func_block->n_children-1];
     if (statement_list->children[statement_list->n_children-1]->type != RETURN_STATEMENT) {
         putchar('\n');
-        puts("\txor %rax, %rax");
-        puts("\tmovq %rbp, %rsp");
-        puts("\tpopq %rbp");
-        puts("\tret");
+        e_reg_reg("xor", REG_RAX, REG_RAX);
+        e_reg_reg("movq", REG_RBP, REG_RSP);
+        e0_reg("popq", REG_RBP);
+        e0("ret");
     }
     putchar('\n');
 }
