@@ -1,0 +1,48 @@
+"""
+Test using: ffi_compile.sh && ./ffi_vsl
+"""
+
+def print_from_vsl(i)
+begin
+    print "This is printed from vsl", i
+    return i + 1
+end
+
+def factor (n)
+begin
+    var f
+    f := n/2
+    while (n - f*(n/f)) > 0 do
+        f := f - 1
+    if (f - 1) > 0 then
+    begin
+        var r
+        r := factor (f)
+        r := factor (n/f)
+    end
+    else
+        print n, "is a prime factor"
+    return 0
+end
+
+
+def euclid (a, b)
+begin
+    if a < 0 then a := -a
+    if b < 0 then b := -b
+    if gcd ( a, b ) > 1 then
+        print "Greatest common divisor of", a, "and", b, "is", gcd (a, b)
+    else
+        print a, "and", b, "are relative primes"
+    return 0
+end
+
+def gcd(a, b)
+begin
+    var g
+    if b > 0 then
+        g := gcd(b, a - ((a/b)*b))
+    else
+        g := a
+    return g
+end
