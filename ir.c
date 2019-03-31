@@ -19,6 +19,7 @@
 DEF_VEC_FUNCS(ir_str, ir_str, NULL);
 DEF_VEC_FUNCS(symbol_t_ptr, symbol_t_ptr, NULL);
 DEF_VEC_FUNCS(tlhash_t_ptr, tlhash_t_ptr, NULL);
+DEF_VEC_FUNCS(label_t, label_t, -1);
 
 /* Push to global symbols vector. */
 #define PUSH_SYMBOL(ctx, sym) VEC_PUSH(&(ctx)->symbols, symbol_t_ptr, sym)
@@ -39,6 +40,8 @@ void ir_ctx_init(ir_ctx_t *ctx)
     ctx->seq = 0;
     ctx->label_count = 0;
     ctx->func_stack_aligned = 0;
+
+    VEC_INIT(&ctx->labels, label_t);
 }
 
 #define DESTROY_TLHASH_SYMBS(tlhash_ptr)                        \
@@ -66,6 +69,8 @@ void ir_ctx_destroy(ir_ctx_t *ctx)
     }
     VEC_DESTROY(&ctx->symbols, symbol_t_ptr);
     if (ctx->temp) free(ctx->temp);
+
+    VEC_DESTROY(&ctx->labels, label_t);
 }
 
 static int extend_temp(ir_ctx_t *ctx, size_t new_size)

@@ -406,12 +406,16 @@ static void while_statement(ir_ctx_t *ctx, symbol_t *func, node_t *relation,
     uint64_t true_label = ctx->label_count++;
     uint64_t false_label = ctx->label_count++;
 
+    VEC_PUSH(&ctx->labels, label_t, true_label);
+
     emit_label(true_label);
     emit_cmp(ctx, func, relation->data_char_ptr, relation->children[0],
              relation->children[1], NULL, &false_label, stack_top);
     rec_traverse(ctx, func, while_block, stack_top);
     e0_imm("jmp", true_label);
     emit_label(false_label);
+
+    VEC_POP(&ctx->labels, label_t);
 }
 
 static void rec_traverse(ir_ctx_t *ctx, symbol_t *func, node_t *r, size_t *stack_top)
@@ -434,6 +438,11 @@ static void rec_traverse(ir_ctx_t *ctx, symbol_t *func, node_t *r, size_t *stack
             if_statement(ctx, func, r->children[0], r->children[1], else_block, stack_top);
             break;
         }
+
+        case NULL_STATEMENT:
+            inline_src(r);
+            e0_imm("jmp", VEC_PEEK(&ctx->labels, label_t));
+            break;
 
         case WHILE_STATEMENT: {
             inline_src(r);
