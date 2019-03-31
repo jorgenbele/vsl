@@ -104,8 +104,7 @@ static void funcall(ir_ctx_t *ctx, symbol_t *func,
     size_t i = 0;
     /* Set parameters passed by registers. */
     for (; i < arglist->n_children && i < N_PARAM_REGS; i++) {
-        uint16_t type = 0;
-        expr_instr_type_s(arglist->children[i], &type);
+        uint16_t type = instr_type(arglist->children[i]);
         if (arglist->children[i]->type == EXPRESSION) {
             expression(ctx, func, arglist->children[i], stack_top);
             e_reg_reg("movq", REG_RAX, i);
@@ -122,11 +121,10 @@ static void funcall(ir_ctx_t *ctx, symbol_t *func,
 
     /* Push the rest of the parameters by stack. */
     for (size_t j = 0; j + i < arglist->n_children; j++) {
-        uint16_t type = 0;
         const size_t child_idx = arglist->n_children - j - 1;
         node_t *child = arglist->children[child_idx];
 
-        expr_instr_type_s(child, &type);
+        uint16_t type = instr_type(child);
 
         if (child->type == EXPRESSION) {
             expression(ctx, func, child, stack_top);
@@ -162,8 +160,7 @@ static void expression(ir_ctx_t *ctx, symbol_t *func, node_t *expr, size_t *stac
     if (expr->n_children == 1) {
         node_t *left = expr->children[0];
 
-        uint16_t t_left = 0;
-        expr_instr_type_s(left, &t_left);
+        uint16_t t_left = instr_type(left);
 
         /* Evaluate the expression. Results will be stored in %rax . */
         if (left->type == EXPRESSION) expression(ctx, func, left, stack_top);
@@ -260,8 +257,7 @@ static void assignment(ir_ctx_t *ctx, symbol_t *func, node_t *left, node_t *righ
     } else if (right->type == EXPRESSION) {
         expression(ctx, func, right, stack_top);
 
-        uint16_t left_t = 0;
-        expr_instr_type_s(left, &left_t);
+        uint16_t left_t = instr_type(left);
         printf("# EXPR\n");
         e_reg_mem(ctx, func, "movq", REG_RAX, left, left_t, stack_top, 0);
     }
@@ -288,8 +284,7 @@ static void print_statement(ir_ctx_t *ctx, symbol_t *func, node_t *r, size_t *st
                 break;
 
             case IDENTIFIER_DATA: {
-                uint16_t t = 0;
-                expr_instr_type_s(r->children[i], &t);
+                uint16_t t = instr_type(r->children[i]);
                 e0("leaq intout(%rip), %rdi");
                 e_mem_reg(ctx, func, "movq", r->children[i], t, REG_RSI, stack_top, 0);
                 break;
@@ -449,8 +444,7 @@ static void rec_traverse(ir_ctx_t *ctx, symbol_t *func, node_t *r, size_t *stack
             if (ret_val->type == EXPRESSION) {
                 expression(ctx, func, ret_val, stack_top);
             } else {
-                uint16_t ret_val_type = 0;
-                expr_instr_type_s(ret_val, &ret_val_type);
+                uint16_t ret_val_type = instr_type(ret_val);
                 e_mem_reg(ctx, func, "movq", ret_val, ret_val_type, REG_RAX, stack_top, 0);
             }
 
@@ -483,16 +477,7 @@ static void gen_func(ir_ctx_t *ctx, symbol_t *func)
     /* Function label. */
     printf("_%s:\n", func->name);
 
-    /*
-     * Setup stack frame:
-     * 0. Push rbp register.
-     * 1. Allocate space for params and save them on the stack
-     * 2. Allocate space for locals in order of their params.
-     *     (FOR NOW, THIS SIMPLIFIES FUNCTION CALLS).
-     * (2. ---Save param registers if needed.----)
-     */
-
-    /* Save %rbp and set %rsp.  */
+    /* Save and set %rbp.  */
     e0_reg("pushq", REG_RBP);
     e_reg_reg("movq", REG_RSP, REG_RBP);
     assert(sizeof(int_type) == 8); // ...
@@ -514,19 +499,23 @@ static void gen_func(ir_ctx_t *ctx, symbol_t *func)
     size_t i = reg_params;
     while (i > 0) {
         symbol_t *param = VEC_GET(func->locals, symbol_t_ptr, i-1);
-        printf("\tmovq %s, %" PRId64 "(%%rbp)  # saving param #%" PRId64 ", %s\n",
-               param_regs[i-1], param_rsp_offset(func, param), i-1, param->name);
-        assert(param->type == SYM_PARAMETER);
+        /* assert(param->type == SYM_PARAMETER); */
+        /* e_reg_mem_nnl(ctx, func, "movq", i-1, param->node, T_PARAM, 0, 0); */
+        printf("\tmovq %s, %" PRId64 "(%%rbp)", param_regs[i-1], param_rsp_offset(func, param));
+        e_comment("Saving param #%" PRId64 ": %s", i-1, param->name);
         i--;
     }
 
-    /* XXXX: Necessary? */
     /* Initialize locals to 0. */
     i = saved;
     while (i > func->nparms) {
         symbol_t *local = VEC_GET(func->locals, symbol_t_ptr, i-1);
-        printf("\tmovq $0, %" PRId64 "(%%rbp)  # saving local #%" PRId64 ", %s\n",
-               local_rsp_offset(func, local), i-1, local->name);
+
+        printf("\tmovq $0, %" PRId64 "(%%rbp)", local_rsp_offset(func, local));
+        e_comment("Zeroing local #%" PRId64 ": %s", i-1, local->name);
+
+        //printf("\tmovq $0, %" PRId64 "(%%rbp)  # saving local #%" PRId64 ", %s\n",
+        //       local_rsp_offset(func, local), i-1, local->name);
         assert(local->type == SYM_LOCAL_VAR);
         i--;
     }
