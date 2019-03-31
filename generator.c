@@ -11,6 +11,30 @@
 
 #include "node_src.h"
 
+static void inline_src(node_t *node);
+static void gen_strtable(ir_ctx_t *ctx);
+static void gen_main(symbol_t *main_func);
+static void funcall(ir_ctx_t *ctx, symbol_t *func,
+                    node_t *func_ident, node_t *arglist, size_t *stack_top);
+
+static void expression(ir_ctx_t *ctx, symbol_t *func, node_t *expr, size_t *stack_top);
+static void assignment(ir_ctx_t *ctx, symbol_t *func, node_t *left, node_t *right, size_t *stack_top);
+static void print_statement(ir_ctx_t *ctx, symbol_t *func, node_t *r, size_t *stack_top);
+
+static void emit_cmp(ir_ctx_t *ctx, symbol_t *func, const char *rel_str,
+                     node_t *left, node_t *right,
+                     const uint64_t *true_label, const uint64_t *false_label, size_t *stack_top);
+
+static void if_statement(ir_ctx_t *ctx, symbol_t *func, node_t *relation,
+                         node_t *true_block, node_t *else_block, size_t *stack_top);
+
+static void while_statement(ir_ctx_t *ctx, symbol_t *func, node_t *relation,
+                         node_t *while_block, size_t *stack_top);
+
+static void rec_traverse(ir_ctx_t *ctx, symbol_t *func, node_t *r, size_t *stack_top);
+static void gen_func(ir_ctx_t *ctx, symbol_t *func);
+
+
 /* inline_src: Generate comments of source code in the
  *             output assembly code. */
 static void inline_src(node_t *node)
@@ -87,10 +111,6 @@ static void gen_main(symbol_t *main_func)
     puts("\tcall exit");
     putchar('\n');
 }
-
-
-/* PROTOTYPE. */
-static void expression(ir_ctx_t *ctx, symbol_t *func, node_t *expr, size_t *stack_top);
 
 /* funcall():
  *     Emit a function call procedure passing the first six parameters by
@@ -238,9 +258,8 @@ static void assignment(ir_ctx_t *ctx, symbol_t *func, node_t *left, node_t *righ
     (void) ctx;
     assert(left->type == IDENTIFIER_DATA);
 
-    uint16_t t_left, t_right;
-    t_left = t_right = 0;
-    expr_instr_type(left, &t_left, right, &t_right);
+    uint16_t t_left = instr_type(left);
+    uint16_t t_right = instr_type(right);
 
 #define IS_CONST_TYPE(node_type) ((node_type) == NUMBER_DATA)
 
@@ -256,10 +275,7 @@ static void assignment(ir_ctx_t *ctx, symbol_t *func, node_t *left, node_t *righ
 
     } else if (right->type == EXPRESSION) {
         expression(ctx, func, right, stack_top);
-
-        uint16_t left_t = instr_type(left);
-        printf("# EXPR\n");
-        e_reg_mem(ctx, func, "movq", REG_RAX, left, left_t, stack_top, 0);
+        e_reg_mem(ctx, func, "movq", REG_RAX, left, instr_type(left), stack_top, 0);
     }
 }
 
@@ -269,7 +285,6 @@ static void assignment(ir_ctx_t *ctx, symbol_t *func, node_t *left, node_t *righ
  */
 static void print_statement(ir_ctx_t *ctx, symbol_t *func, node_t *r, size_t *stack_top)
 {
-
     for (size_t i = 0; i < r->n_children; i++) {
         switch (r->children[i]->type) {
             case STRING_DATA:
@@ -311,9 +326,8 @@ static void emit_cmp(ir_ctx_t *ctx, symbol_t *func, const char *rel_str,
                      node_t *left, node_t *right,
                      const uint64_t *true_label, const uint64_t *false_label, size_t *stack_top)
 {
-    uint16_t t_left, t_right;
-    t_left = t_right = 0;
-    expr_instr_type(left, &t_left, right, &t_right);
+    uint16_t t_left = instr_type(left);
+    uint16_t t_right = instr_type(right);
     size_t left_stack_offset = 0;
 
     if (left->type == EXPRESSION)  {
@@ -355,9 +369,6 @@ static void emit_cmp(ir_ctx_t *ctx, symbol_t *func, const char *rel_str,
         if (false_label) e0_label("jmp", *false_label);
     }
 }
-
-/* prototype */
-static void rec_traverse(ir_ctx_t *ctx, symbol_t *func, node_t *r, size_t *stack_top);
 
 static void if_statement(ir_ctx_t *ctx, symbol_t *func, node_t *relation,
                          node_t *true_block, node_t *else_block, size_t *stack_top)
@@ -405,6 +416,7 @@ static void while_statement(ir_ctx_t *ctx, symbol_t *func, node_t *relation,
 
 static void rec_traverse(ir_ctx_t *ctx, symbol_t *func, node_t *r, size_t *stack_top)
 {
+    assert(*stack_top == 0);
     switch (r->type) {
         case ASSIGNMENT_STATEMENT:
             inline_src(r);
@@ -459,6 +471,7 @@ static void rec_traverse(ir_ctx_t *ctx, symbol_t *func, node_t *r, size_t *stack
                 rec_traverse(ctx, func, r->children[i], stack_top);
             break;
     }
+    assert(*stack_top == 0);
 }
 
 
@@ -500,7 +513,6 @@ static void gen_func(ir_ctx_t *ctx, symbol_t *func)
     while (i > 0) {
         symbol_t *param = VEC_GET(func->locals, symbol_t_ptr, i-1);
         /* assert(param->type == SYM_PARAMETER); */
-        /* e_reg_mem_nnl(ctx, func, "movq", i-1, param->node, T_PARAM, 0, 0); */
         printf("\tmovq %s, %" PRId64 "(%%rbp)", param_regs[i-1], param_rsp_offset(func, param));
         e_comment("Saving param #%" PRId64 ": %s", i-1, param->name);
         i--;
@@ -510,13 +522,9 @@ static void gen_func(ir_ctx_t *ctx, symbol_t *func)
     i = saved;
     while (i > func->nparms) {
         symbol_t *local = VEC_GET(func->locals, symbol_t_ptr, i-1);
-
+        assert(local->type == SYM_LOCAL_VAR);
         printf("\tmovq $0, %" PRId64 "(%%rbp)", local_rsp_offset(func, local));
         e_comment("Zeroing local #%" PRId64 ": %s", i-1, local->name);
-
-        //printf("\tmovq $0, %" PRId64 "(%%rbp)  # saving local #%" PRId64 ", %s\n",
-        //       local_rsp_offset(func, local), i-1, local->name);
-        assert(local->type == SYM_LOCAL_VAR);
         i--;
     }
 
