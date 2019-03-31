@@ -20,7 +20,9 @@ enum {
   REG_R9  = 0x5,
   REG_RAX = 0x6,
   REG_RSP = 0x7,
-  REG_RBP = 0x8
+  REG_RBP = 0x8,
+  REG_R10  = 0x9,
+  REG_R11 = 0xA
 };
 
 static const char *param_regs[] = {
@@ -30,7 +32,7 @@ static const char *param_regs[] = {
 #define N_PARAM_REGS 6
 
 static const char *regs[] = {
-    "%rdi", "%rsi", "%rdx", "%rcx", "%r8", "%r9", "%rax", "%rsp", "%rbp"
+    "%rdi", "%rsi", "%rdx", "%rcx", "%r8", "%r9", "%rax", "%rsp", "%rbp", "%r10", "%r11"
 };
 
 enum {
@@ -54,12 +56,12 @@ enum {
  * | return adress (8 bytes)     |
  * | saved registers  (8 bytes)  |
  * ------- stack frame -----------
- * | register parameters:        |
+ * | local variables             |
+ * | register parameters: (saved)|
  * |    +parameter 5             |
  * |    +parameter 4             |
  * |    +parameter ...           |
  * |    +parameter 0             |
- * | local variables             |
  * | <padding>                   |
  * ===============================
  */
@@ -80,9 +82,9 @@ inline static int64_t param_rsp_offset(symbol_t *func, symbol_t *param)
          offset = 16 + (param->seq - N_PARAM_REGS)*8;
          goto end;
     }
-    /* Parameter was passed as register and is stored at the beginning
-     * of the stack frame. */
-    offset = -param->seq*8 - 8;
+    /* Parameter was passed as register and is stored after
+     * the local variables. */
+    offset = -param->seq*8  - (VEC_LEN(func->locals) - func->nparms)*8 - 8;
 
 end:
     assert(offset != 0);
@@ -93,14 +95,7 @@ inline static int64_t local_rsp_offset(symbol_t *func, symbol_t *local)
 {
     int64_t offset = 0;
     assert(local->type == SYM_LOCAL_VAR);
-
-    if (func->nparms >= N_PARAM_REGS) {
-        offset = -local->seq*8 - N_PARAM_REGS*8 - 8;
-        goto end;
-    }
-    offset = -local->seq*8 - func->nparms*8 - 8;
-
-end:
+    offset = -local->seq*8 - 8;
     assert(offset != 0);
     return offset;
 }
@@ -142,8 +137,8 @@ inline static void e_comment(const char *fmt, ...)
 }
 
 inline static void emit_label_nnl(uint64_t label)                  { printf("\n.L%" PRId64 ":", label);          }
-inline static void e0_reg_nnl(const char *instr, uint8_t reg)      { printf("\t%s %s", instr, regs[reg]);             }
-inline static void e0_nnl(const char *instr)                       { printf("\t%s", instr);                           }
+inline static void e0_reg_nnl(const char *instr, uint8_t reg)      { printf("\t%s %s", instr, regs[reg]);        }
+inline static void e0_nnl(const char *instr)                       { printf("\t%s", instr);                      }
 inline static void e0_imm_nnl(const char *instr, int_type imm)     { printf("\t%s .L%" PRIdit "", instr, imm);   }
 inline static void e0_label_nnl(const char *instr, uint64_t label) { printf("\t%s .L%" PRId64 "", instr, label); }
 inline static void e_reg_reg_nnl(const char *instr, uint8_t reg_left, uint8_t reg_right) { printf("\t%s %s, %s", instr, regs[reg_left], regs[reg_right]); }
@@ -196,9 +191,8 @@ inline static void e_param(ir_ctx_t *ctx, symbol_t *func, node_t *n, uint8_t t_n
     locals_aligned += locals_aligned % 16;
 
     switch (t_n) {
-        case T_STACK:  printf("%" PRId64 "(%%rsp)", (stack_offset)*sizeof(int_type)); break;
-        case T_REG:    debug("Not supported!"); exit(1); break;
-
+        case T_STACK: printf("%" PRId64 "(%%rsp)", (stack_offset)*sizeof(int_type)); break;
+        case T_REG:   debug("Not supported!"); exit(1); break;
         case T_PARAM: printf("%" PRId64 "(%%rbp)", param_rsp_offset(func, n->entry)); break;
         case T_LOCAL: printf("%" PRId64 "(%%rbp)", local_rsp_offset(func, n->entry)); break;
 

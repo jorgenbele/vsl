@@ -42,6 +42,10 @@ void ir_ctx_init(ir_ctx_t *ctx)
     ctx->func_stack_aligned = 0;
 
     VEC_INIT(&ctx->labels, label_t);
+
+    ctx->generate_header = false;
+    ctx->export_functions = false;
+    ctx->generate_main = true;
 }
 
 #define DESTROY_TLHASH_SYMBS(tlhash_ptr)                        \

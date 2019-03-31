@@ -59,6 +59,10 @@ typedef struct {
 
     uint64_t func_stack_aligned;
     VEC(label_t) labels;
+
+    bool export_functions;
+    bool generate_main;
+    bool generate_header;
 } ir_ctx_t;
 
 void ir_ctx_init(ir_ctx_t *ctx);
