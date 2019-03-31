@@ -213,15 +213,13 @@ static void expression(ir_ctx_t *ctx, symbol_t *func, node_t *expr, size_t *stac
     /* Evaluate the expression. Results will be stored on the stack. */
     if (left->type == EXPRESSION)  {
         expression(ctx, func, left, stack_top);
-        e0_reg_nnl("pushq", REG_RAX);
-        e_comment("pushing left");
+        e0_reg("pushq", REG_RAX);
         (*stack_top)++;
         t_left = T_STACK;
     }
     if (right->type == EXPRESSION) {
         expression(ctx, func, right, stack_top);
-        e0_reg_nnl("pushq", REG_RAX);
-        e_comment("pushing right");
+        e0_reg("pushq", REG_RAX);
         (*stack_top)++;
         t_right = T_STACK;
         left_stack_offset = 1;
@@ -256,14 +254,8 @@ static void expression(ir_ctx_t *ctx, symbol_t *func, node_t *expr, size_t *stac
             return;
     }
 
-    if (t_left == T_STACK) {
-        e_imm_reg_nnl("addq", 0x8, REG_RSP); (*stack_top)--;
-        e_comment("popping left");
-    }
-    if (t_right == T_STACK) {
-        e_imm_reg_nnl("addq", 0x8, REG_RSP); (*stack_top)--;
-        e_comment("popping right");
-    }
+    if (t_left == T_STACK)  { e_imm_reg("addq", 0x8, REG_RSP); (*stack_top)--; }
+    if (t_right == T_STACK) { e_imm_reg("addq", 0x8, REG_RSP); (*stack_top)--; }
     return;
 }
 
@@ -362,8 +354,8 @@ static void emit_cmp(ir_ctx_t *ctx, symbol_t *func, const char *rel_str,
     e_mem_reg(ctx, func, "movq", right, t_right, REG_RSI, stack_top, 0);
 
     /* Cleanup stack before any jump. */
-    if (t_left == T_STACK) { e_imm_reg_nnl("addq", 0x8, REG_RSP); e_comment("stack cleanup, left"); (*stack_top)--;}
-    if (t_right == T_STACK) { e_imm_reg_nnl("addq", 0x8, REG_RSP); e_comment("stack cleanup, right"); (*stack_top)--;}
+    if (t_left == T_STACK) { e_imm_reg("addq", 0x8, REG_RSP); (*stack_top)--;}
+    if (t_right == T_STACK) { e_imm_reg("addq", 0x8, REG_RSP); (*stack_top)--;}
 
     e_reg_reg("cmpq", REG_RSI, REG_RDI);
 
@@ -522,8 +514,10 @@ static void gen_func(ir_ctx_t *ctx, symbol_t *func)
     locals_aligned += locals_aligned % 16;
 
     /* Reserve space for variables + alignment. */
-    e_imm_reg_nnl("subq", locals_aligned, REG_RSP);
-    e_comment("reserve space for vars, 16 bytes aligned");
+    if (locals_aligned != 0) {
+        e_imm_reg_nnl("subq", locals_aligned, REG_RSP);
+        e_comment("reserve space for vars, 16 bytes aligned");
+    }
     const size_t reg_params = MIN(N_PARAM_REGS, func->nparms);
 
     /* Save parameters passed by registers in reverse order. */

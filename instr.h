@@ -239,7 +239,7 @@ inline static void e0_mem(ir_ctx_t *ctx, symbol_t *func, const char *instr,
                                node_t *left, uint8_t t_left, size_t *stack_top, size_t stack_offset)
 {
     e0_mem_nnl(ctx, func, instr, left, t_left, stack_top, stack_offset);
-    e_param_comment(left, t_left, NULL, 0);
+    //e_param_comment(left, t_left, NULL, 0);
     putchar('\n');
 }
 
@@ -247,7 +247,7 @@ inline static void e_mem_reg(ir_ctx_t *ctx, symbol_t *func, const char *instr,
                                node_t *left, uint8_t t_left, uint8_t reg, size_t *stack_top, size_t stack_offset)
 {
     e_mem_reg_nnl(ctx, func, instr, left, t_left, reg, stack_top, stack_offset);
-    e_param_comment(left, t_left, NULL, 0);
+    //e_param_comment(left, t_left, NULL, 0);
     putchar('\n');
 }
 
@@ -255,7 +255,7 @@ inline static void e_reg_mem(ir_ctx_t *ctx, symbol_t *func, const char *instr, u
                                node_t *right, uint8_t t_right, size_t *stack_top, size_t stack_offset)
 {
     e_reg_mem_nnl(ctx, func, instr, reg, right, t_right, stack_top, stack_offset);
-    e_param_comment(right, t_right, NULL, 0);
+    //e_param_comment(right, t_right, NULL, 0);
     putchar('\n');
 }
 
@@ -263,7 +263,7 @@ inline static void e_imm_mem(ir_ctx_t *ctx, symbol_t *func, const char *instr, i
                                node_t *right, uint8_t t_right, size_t *stack_top, size_t stack_offset)
 {
     e_imm_mem_nnl(ctx, func, instr, imm, right, t_right, stack_top, stack_offset);
-    e_param_comment(right, t_right, NULL, 0);
+    //e_param_comment(right, t_right, NULL, 0);
     putchar('\n');
 }
 
