@@ -17,7 +17,7 @@ static void gen_main(symbol_t *main_func);
 static void funcall(ir_ctx_t *ctx, symbol_t *func,
                     node_t *func_ident, node_t *arglist, size_t *stack_top);
 
-static void expression(ir_ctx_t *ctx, symbol_t *func, node_t *expr, size_t *stack_top);
+static void expression(ir_ctx_t *ctx, symbol_t *func, node_t *expr, reg_t res_reg, size_t *stack_top);
 static void assignment(ir_ctx_t *ctx, symbol_t *func, node_t *left, node_t *right, size_t *stack_top);
 static void print_statement(ir_ctx_t *ctx, symbol_t *func, node_t *r, size_t *stack_top);
 
@@ -39,6 +39,7 @@ static void gen_func(ir_ctx_t *ctx, symbol_t *func);
  *             output assembly code. */
 static void inline_src(node_t *node)
 {
+    src_print_line = 1;
     src_newline = SRC_NEVER_NEWLINE;
     src_line_prefix = "\t";
 
@@ -124,10 +125,10 @@ static void funcall(ir_ctx_t *ctx, symbol_t *func,
     size_t i = 0;
     /* Set parameters passed by registers. */
     for (; i < arglist->n_children && i < N_PARAM_REGS; i++) {
-        uint16_t type = instr_type(arglist->children[i]);
+        oper_t type = instr_type(arglist->children[i]);
         if (arglist->children[i]->type == EXPRESSION) {
-            expression(ctx, func, arglist->children[i], stack_top);
-            e_reg_reg_nnl("movq", REG_RAX, i);
+            expression(ctx, func, arglist->children[i], i, stack_top);
+            //e_reg_reg_nnl("movq", REG_RAX, i);
             e_expr_comment(arglist->children[i]);
         } else {
             e_mem_reg_nnl(ctx, func, "movq", arglist->children[i], type, i, stack_top, 0);
@@ -147,10 +148,10 @@ static void funcall(ir_ctx_t *ctx, symbol_t *func,
         const size_t child_idx = arglist->n_children - j - 1;
         node_t *child = arglist->children[child_idx];
 
-        uint16_t type = instr_type(child);
+        oper_t type = instr_type(child);
 
         if (child->type == EXPRESSION) {
-            expression(ctx, func, child, stack_top);
+            expression(ctx, func, child, REG_RAX, stack_top);
             e0_reg_nnl("pushq", REG_RAX);
         } else {
             e0_mem_nnl(ctx, func, "pushq", child, type, stack_top, 0);
@@ -172,7 +173,7 @@ static void funcall(ir_ctx_t *ctx, symbol_t *func,
  *  Creates the assembly representing an expression.
  *  Saves the result in %rax.
  */
-static void expression(ir_ctx_t *ctx, symbol_t *func, node_t *expr, size_t *stack_top)
+static void expression(ir_ctx_t *ctx, symbol_t *func, node_t *expr, reg_t res_reg, size_t *stack_top)
 {
     //inline_src(expr);
     if (!strcmp(expr->data_char_ptr, "func_call")) {
@@ -185,17 +186,16 @@ static void expression(ir_ctx_t *ctx, symbol_t *func, node_t *expr, size_t *stac
 
     if (expr->n_children == 1) {
         node_t *left = expr->children[0];
+        oper_t t_left = instr_type(left);
 
-        uint16_t t_left = instr_type(left);
-
-        /* Evaluate the expression. Results will be stored in %rax . */
-        if (left->type == EXPRESSION) expression(ctx, func, left, stack_top);
-        else e_mem_reg(ctx, func, "movq", left, t_left, REG_RAX, stack_top, 0);
+        /* Evaluate the expression. Results will be stored in res_reg. */
+        if (left->type == EXPRESSION) expression(ctx, func, left, res_reg, stack_top);
+        else e_mem_reg(ctx, func, "movq", left, t_left, res_reg, stack_top, 0);
 
         /* Has to be an identifier since '- <number>' const expressions valuate to the -<number>. */
         switch (*expr->data_char_ptr) {
-            case '-': e0_reg("negq", REG_RAX); break;
-            case '~': e0_reg("notq", REG_RAX); break;
+            case '-': e0_reg("negq", res_reg); break;
+            case '~': e0_reg("notq", res_reg); break;
             default: debug("EXPRESSION NOT IMPLEMENTED: [%d:%d]", expr->line, expr->col); exit(1); return;
         }
         return;
@@ -205,40 +205,44 @@ static void expression(ir_ctx_t *ctx, symbol_t *func, node_t *expr, size_t *stac
     node_t *left = expr->children[0];
     node_t *right = expr->children[1];
 
-    uint16_t t_left, t_right;
-    t_left = t_right = 0;
-    expr_instr_type(left, &t_left, right, &t_right);
+    oper_t t_left = instr_type(left);
+    oper_t t_right = instr_type(right);
     size_t left_stack_offset = 0;
 
     /* Evaluate the expression. Results will be stored on the stack. */
     if (left->type == EXPRESSION)  {
-        expression(ctx, func, left, stack_top);
-        e0_reg("pushq", REG_RAX);
-        (*stack_top)++;
-        t_left = T_STACK;
+        expression(ctx, func, left, REG_R8, stack_top);
+        t_left = T_REG_R8;
+
+        //e0_reg("pushq", REG_RAX);
+        //(*stack_top)++;
+        //t_left = T_STACK;
     }
     if (right->type == EXPRESSION) {
-        expression(ctx, func, right, stack_top);
-        e0_reg("pushq", REG_RAX);
-        (*stack_top)++;
-        t_right = T_STACK;
-        left_stack_offset = 1;
+        expression(ctx, func, right, REG_R9, stack_top);
+        t_right = T_REG_R9;
+
+        //e0_reg("pushq", REG_RAX);
+        //(*stack_top)++;
+        //t_right = T_STACK;
+        //left_stack_offset = 1;
     }
 
     switch (*expr->data_char_ptr) {
         case '+':
-            e_mem_reg(ctx, func, "movq", left, t_left, REG_RAX, stack_top, left_stack_offset);
-            e_mem_reg(ctx, func, "addq", right, t_right, REG_RAX, stack_top, 0);
+            e_mem_reg(ctx, func, "movq", left, t_left, res_reg, stack_top, left_stack_offset);
+            e_mem_reg(ctx, func, "addq", right, t_right, res_reg, stack_top, 0);
             break;
 
         case '-':
-            e_mem_reg(ctx, func, "movq", left, t_left, REG_RAX, stack_top, left_stack_offset);
-            e_mem_reg(ctx, func, "subq", right, t_right, REG_RAX, stack_top, 0);
+            e_mem_reg(ctx, func, "movq", left, t_left, res_reg, stack_top, left_stack_offset);
+            e_mem_reg(ctx, func, "subq", right, t_right, res_reg, stack_top, 0);
             break;
 
         case '*':
             e_mem_reg(ctx, func, "movq", left, t_left, REG_RAX, stack_top, left_stack_offset);
             e_mem_reg(ctx, func, "imulq", right, t_right, REG_RAX, stack_top, 0);
+            if (res_reg != REG_RAX) e_reg_reg("movq", REG_RAX, res_reg); // TODO
             break;
 
         case '/':
@@ -246,6 +250,7 @@ static void expression(ir_ctx_t *ctx, symbol_t *func, node_t *expr, size_t *stac
             e_mem_reg(ctx, func, "movq", left, t_left, REG_RAX, stack_top, left_stack_offset);     // left -> rax
             e0("cqo");
             e0_reg("idiv", REG_RDI);
+            if (res_reg != REG_RAX) e_reg_reg("movq", REG_RAX, res_reg); // TODO
             break;
 
         default:
@@ -254,8 +259,8 @@ static void expression(ir_ctx_t *ctx, symbol_t *func, node_t *expr, size_t *stac
             return;
     }
 
-    if (t_left == T_STACK)  { e_imm_reg("addq", 0x8, REG_RSP); (*stack_top)--; }
-    if (t_right == T_STACK) { e_imm_reg("addq", 0x8, REG_RSP); (*stack_top)--; }
+    //if (t_left == T_STACK)  { e_imm_reg("addq", 0x8, REG_RSP); (*stack_top)--; }
+    //if (t_right == T_STACK) { e_imm_reg("addq", 0x8, REG_RSP); (*stack_top)--; }
     return;
 }
 
@@ -264,8 +269,8 @@ static void assignment(ir_ctx_t *ctx, symbol_t *func, node_t *left, node_t *righ
     (void) ctx;
     assert(left->type == IDENTIFIER_DATA);
 
-    uint16_t t_left = instr_type(left);
-    uint16_t t_right = instr_type(right);
+    oper_t t_left = instr_type(left);
+    oper_t t_right = instr_type(right);
 
 #define IS_CONST_TYPE(node_type) ((node_type) == NUMBER_DATA)
 
@@ -280,7 +285,7 @@ static void assignment(ir_ctx_t *ctx, symbol_t *func, node_t *left, node_t *righ
         e_reg_mem(ctx, func, "movq", REG_RAX, left, t_left, stack_top, 0);
 
     } else if (right->type == EXPRESSION) {
-        expression(ctx, func, right, stack_top);
+        expression(ctx, func, right, REG_RAX, stack_top);
         e_reg_mem(ctx, func, "movq", REG_RAX, left, instr_type(left), stack_top, 0);
     }
 }
@@ -304,15 +309,15 @@ static void print_statement(ir_ctx_t *ctx, symbol_t *func, node_t *r, size_t *st
                 break;
 
             case IDENTIFIER_DATA: {
-                uint16_t t = instr_type(r->children[i]);
+                oper_t t = instr_type(r->children[i]);
                 e0("leaq intout(%rip), %rdi");
                 e_mem_reg(ctx, func, "movq", r->children[i], t, REG_RSI, stack_top, 0);
                 break;
             }
             case EXPRESSION: {
-                expression(ctx, func, r->children[i], stack_top);
+                expression(ctx, func, r->children[i], REG_RSI, stack_top);
                 e0("leaq intout(%rip), %rdi");
-                e_reg_reg("movq", REG_RAX, REG_RSI);
+                //e_reg_reg("movq", REG_RAX, REG_RSI);
                 break;
             }
             default:
@@ -331,31 +336,45 @@ static void emit_cmp(ir_ctx_t *ctx, symbol_t *func, const char *rel_str,
                      node_t *left, node_t *right,
                      const uint64_t *true_label, const uint64_t *false_label, size_t *stack_top)
 {
-    uint16_t t_left = instr_type(left);
-    uint16_t t_right = instr_type(right);
+    oper_t t_left = instr_type(left);
+    oper_t t_right = instr_type(right);
     size_t left_stack_offset = 0;
 
+    //if (left->type == EXPRESSION)  {
+    //    expression(ctx, func, left, stack_top);
+    //    e0_reg("pushq", REG_RAX);
+    //    (*stack_top)++;
+    //    t_left = T_STACK;
+    //}
+
+    //if (right->type == EXPRESSION)  {
+    //    expression(ctx, func, right, stack_top);
+    //    e0_reg("pushq", REG_RAX);
+    //    (*stack_top)++;
+    //    t_right = T_STACK;
+    //    left_stack_offset = 1;
+    //}
+
     if (left->type == EXPRESSION)  {
-        expression(ctx, func, left, stack_top);
-        e0_reg("pushq", REG_RAX);
-        (*stack_top)++;
-        t_left = T_STACK;
+        expression(ctx, func, left, REG_R8, stack_top);
+        //e_reg_reg_nnl("movq", REG_RAX, REG_R8);
+        //e_comment("saving expression result in %r8");
+        t_left = T_REG_R8;
     }
 
     if (right->type == EXPRESSION)  {
-        expression(ctx, func, right, stack_top);
-        e0_reg("pushq", REG_RAX);
-        (*stack_top)++;
-        t_right = T_STACK;
-        left_stack_offset = 1;
+        expression(ctx, func, right, REG_R9, stack_top);
+        //e_reg_reg_nnl("movq", REG_RAX, REG_R9);
+        //e_comment("saving expression result in %r9");
+        t_right = T_REG_R9;
     }
 
     e_mem_reg(ctx, func, "movq", left, t_left, REG_RDI, stack_top, left_stack_offset);
     e_mem_reg(ctx, func, "movq", right, t_right, REG_RSI, stack_top, 0);
 
     /* Cleanup stack before any jump. */
-    if (t_left == T_STACK) { e_imm_reg("addq", 0x8, REG_RSP); (*stack_top)--;}
-    if (t_right == T_STACK) { e_imm_reg("addq", 0x8, REG_RSP); (*stack_top)--;}
+    //if (t_left == T_STACK) { e_imm_reg("addq", 0x8, REG_RSP); (*stack_top)--;}
+    //if (t_right == T_STACK) { e_imm_reg("addq", 0x8, REG_RSP); (*stack_top)--;}
 
     e_reg_reg("cmpq", REG_RSI, REG_RDI);
 
@@ -379,7 +398,7 @@ static void if_statement(ir_ctx_t *ctx, symbol_t *func, node_t *relation,
                          node_t *true_block, node_t *else_block, size_t *stack_top)
 {
     if (!else_block) {
-        const uint64_t false_label = ctx->label_count++;
+        const label_t false_label = ctx->label_count++;
 
         /* No true label since the true block is directly following this block. */
         emit_cmp(ctx, func, relation->data_char_ptr, relation->children[0],
@@ -388,8 +407,8 @@ static void if_statement(ir_ctx_t *ctx, symbol_t *func, node_t *relation,
         emit_label(false_label); /* End of if-true block. */
 
     } else {
-        const uint64_t false_label = ctx->label_count++;
-        const uint64_t end_if_label = ctx->label_count++;
+        const label_t false_label = ctx->label_count++;
+        const label_t end_if_label = ctx->label_count++;
 
         emit_cmp(ctx, func, relation->data_char_ptr, relation->children[0],
                  relation->children[1], NULL, &false_label, stack_top);
@@ -404,8 +423,8 @@ static void if_statement(ir_ctx_t *ctx, symbol_t *func, node_t *relation,
 static void while_statement(ir_ctx_t *ctx, symbol_t *func, node_t *relation,
                          node_t *while_block, size_t *stack_top)
 {
-    const uint64_t true_label = ctx->label_count++;
-    const uint64_t false_label = ctx->label_count++;
+    const label_t true_label = ctx->label_count++;
+    const label_t false_label = ctx->label_count++;
 
     VEC_PUSH(&ctx->labels, label_t, true_label);
 
@@ -452,16 +471,16 @@ static void rec_traverse(ir_ctx_t *ctx, symbol_t *func, node_t *r, size_t *stack
             break;
         }
 
-        case EXPRESSION: expression(ctx, func, r, stack_top); break; // Result is stored in %rax.
+        case EXPRESSION: expression(ctx, func, r, REG_RAX, stack_top); break; // Result is stored in %rax.
 
         case RETURN_STATEMENT: {
             inline_src(r);
             assert(r->n_children == 1);
             node_t *ret_val = r->children[0];
             if (ret_val->type == EXPRESSION) {
-                expression(ctx, func, ret_val, stack_top);
+                expression(ctx, func, ret_val, REG_RAX, stack_top);
             } else {
-                uint16_t ret_val_type = instr_type(ret_val);
+                oper_t ret_val_type = instr_type(ret_val);
                 e_mem_reg(ctx, func, "movq", ret_val, ret_val_type, REG_RAX, stack_top, 0);
             }
 

@@ -10,6 +10,7 @@
 FILE *src_print_file = NULL;
 int src_newline = 0;
 char *src_line_prefix = "";
+int src_print_line = 0;
 
 /* List of static variables. */
 static int cur_col = 0;
@@ -285,12 +286,14 @@ static void emit_node(const node_t *n)
 
 void node_print_statement(node_t *n)
 {
+    if (src_print_line) printf(" line %d: ", n->line);
     emit_statement(n);
     if (src_newline == SRC_ALWAYS_NEWLINE && cur_col) NEWLINE;
 }
 
 void node_print_expression(node_t *n)
 {
+    if (src_print_line) printf(" line %d: ", n->line);
     emit_expression(n);
     if (src_newline == SRC_ALWAYS_NEWLINE && cur_col) NEWLINE;
 }

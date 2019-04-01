@@ -25,5 +25,6 @@ void node_print_expression(node_t *n);
 extern FILE *src_print_file;
 extern char *src_line_prefix;
 extern int src_newline;
+extern int src_print_line;
 
 #endif /* __NODE_SRC_H_ */
