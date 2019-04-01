@@ -11,7 +11,6 @@
  */
 //#define USE_TREE_CORRECT_RULES
 
-
 #define __NODE_TYPE_LIST                                        \
         X(PROGRAM              ,  0),                           \
         X(GLOBAL_LIST          ,  1),                           \
@@ -61,7 +60,6 @@ enum node_type {
     __NODE_TYPE_LIST
 };
 #undef X
-
 
 #define NODE_TYPE_IS_STATEMENT(type)                                    \
     ((FLAG_ASSIGNMENT_STATEMENT | FLAG_STATEMENT                        \
@@ -115,16 +113,16 @@ typedef int64_t int_type;
 #define NODE_DATA_CAST (void *)(uintptr_t)
 
 /* lookup table: node type to type string     */
-extern const char *node_type_to_string[LAST_NO_TYPE];
+extern const char *node_type_to_string[LAST_NO_TYPE+1];
 
 /* lookup table: node type has printable data */
-extern const bool node_tpr_data[LAST_NO_TYPE];
+extern const bool node_tpr_data[LAST_NO_TYPE+1];
 
 /* lookup table: node type has malloc'ed data */
-extern const bool node_malloc_data[LAST_NO_TYPE];
+extern const bool node_malloc_data[LAST_NO_TYPE+1];
 
 /* lookup table: is then node type a list type or not */
-extern const bool node_is_list[LAST_NO_TYPE];
+extern const bool node_is_list[LAST_NO_TYPE+1];
 
 /* lookup table: which node types a given node type can merge
  * its children with in tree_simplify(). The table consists
@@ -155,7 +153,7 @@ extern const bool node_is_list[LAST_NO_TYPE];
  *      PRINT_ITEM
  *        "Hello, "
  */
-extern const uint32_t node_list_parents[LAST_NO_TYPE];
+extern const uint32_t node_list_parents[LAST_NO_TYPE+1];
 
 /*
  * lookup table: used to convert from node type to flag,

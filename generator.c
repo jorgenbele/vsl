@@ -23,7 +23,7 @@ static void print_statement(ir_ctx_t *ctx, symbol_t *func, node_t *r, size_t *st
 
 static void emit_cmp(ir_ctx_t *ctx, symbol_t *func, const char *rel_str,
                      node_t *left, node_t *right,
-                     const uint64_t *true_label, const uint64_t *false_label, size_t *stack_top);
+                     const label_t *true_label, const label_t *false_label, size_t *stack_top);
 
 static void if_statement(ir_ctx_t *ctx, symbol_t *func, node_t *relation,
                          node_t *true_block, node_t *else_block, size_t *stack_top);
@@ -124,7 +124,7 @@ static void funcall(ir_ctx_t *ctx, symbol_t *func,
     size_t i = 0;
     /* Set parameters passed by registers. */
     for (; i < arglist->n_children && i < N_PARAM_REGS; i++) {
-        uint16_t type = instr_type(arglist->children[i]);
+        oper_t type = instr_type(arglist->children[i]);
         if (arglist->children[i]->type == EXPRESSION) {
             expression(ctx, func, arglist->children[i], stack_top);
             e_reg_reg_nnl("movq", REG_RAX, i);
@@ -147,7 +147,7 @@ static void funcall(ir_ctx_t *ctx, symbol_t *func,
         const size_t child_idx = arglist->n_children - j - 1;
         node_t *child = arglist->children[child_idx];
 
-        uint16_t type = instr_type(child);
+        oper_t type = instr_type(child);
 
         if (child->type == EXPRESSION) {
             expression(ctx, func, child, stack_top);
@@ -186,7 +186,7 @@ static void expression(ir_ctx_t *ctx, symbol_t *func, node_t *expr, size_t *stac
     if (expr->n_children == 1) {
         node_t *left = expr->children[0];
 
-        uint16_t t_left = instr_type(left);
+        oper_t t_left = instr_type(left);
 
         /* Evaluate the expression. Results will be stored in %rax . */
         if (left->type == EXPRESSION) expression(ctx, func, left, stack_top);
@@ -205,9 +205,7 @@ static void expression(ir_ctx_t *ctx, symbol_t *func, node_t *expr, size_t *stac
     node_t *left = expr->children[0];
     node_t *right = expr->children[1];
 
-    uint16_t t_left, t_right;
-    t_left = t_right = 0;
-    expr_instr_type(left, &t_left, right, &t_right);
+    oper_t t_left = instr_type(left), t_right = instr_type(right);
     size_t left_stack_offset = 0;
 
     /* Evaluate the expression. Results will be stored on the stack. */
@@ -264,8 +262,8 @@ static void assignment(ir_ctx_t *ctx, symbol_t *func, node_t *left, node_t *righ
     (void) ctx;
     assert(left->type == IDENTIFIER_DATA);
 
-    uint16_t t_left = instr_type(left);
-    uint16_t t_right = instr_type(right);
+    oper_t t_left = instr_type(left);
+    oper_t t_right = instr_type(right);
 
 #define IS_CONST_TYPE(node_type) ((node_type) == NUMBER_DATA)
 
@@ -304,7 +302,7 @@ static void print_statement(ir_ctx_t *ctx, symbol_t *func, node_t *r, size_t *st
                 break;
 
             case IDENTIFIER_DATA: {
-                uint16_t t = instr_type(r->children[i]);
+                oper_t t = instr_type(r->children[i]);
                 e0("leaq intout(%rip), %rdi");
                 e_mem_reg(ctx, func, "movq", r->children[i], t, REG_RSI, stack_top, 0);
                 break;
@@ -329,10 +327,10 @@ static void print_statement(ir_ctx_t *ctx, symbol_t *func, node_t *r, size_t *st
 
 static void emit_cmp(ir_ctx_t *ctx, symbol_t *func, const char *rel_str,
                      node_t *left, node_t *right,
-                     const uint64_t *true_label, const uint64_t *false_label, size_t *stack_top)
+                     const label_t *true_label, const label_t *false_label, size_t *stack_top)
 {
-    uint16_t t_left = instr_type(left);
-    uint16_t t_right = instr_type(right);
+    oper_t t_left = instr_type(left);
+    oper_t t_right = instr_type(right);
     size_t left_stack_offset = 0;
 
     if (left->type == EXPRESSION)  {
@@ -379,7 +377,7 @@ static void if_statement(ir_ctx_t *ctx, symbol_t *func, node_t *relation,
                          node_t *true_block, node_t *else_block, size_t *stack_top)
 {
     if (!else_block) {
-        const uint64_t false_label = ctx->label_count++;
+        const label_t false_label = ctx->label_count++;
 
         /* No true label since the true block is directly following this block. */
         emit_cmp(ctx, func, relation->data_char_ptr, relation->children[0],
@@ -388,8 +386,8 @@ static void if_statement(ir_ctx_t *ctx, symbol_t *func, node_t *relation,
         emit_label(false_label); /* End of if-true block. */
 
     } else {
-        const uint64_t false_label = ctx->label_count++;
-        const uint64_t end_if_label = ctx->label_count++;
+        const label_t false_label = ctx->label_count++;
+        const label_t end_if_label = ctx->label_count++;
 
         emit_cmp(ctx, func, relation->data_char_ptr, relation->children[0],
                  relation->children[1], NULL, &false_label, stack_top);
@@ -404,8 +402,8 @@ static void if_statement(ir_ctx_t *ctx, symbol_t *func, node_t *relation,
 static void while_statement(ir_ctx_t *ctx, symbol_t *func, node_t *relation,
                          node_t *while_block, size_t *stack_top)
 {
-    const uint64_t true_label = ctx->label_count++;
-    const uint64_t false_label = ctx->label_count++;
+    const label_t true_label = ctx->label_count++;
+    const label_t false_label = ctx->label_count++;
 
     VEC_PUSH(&ctx->labels, label_t, true_label);
 
@@ -461,7 +459,7 @@ static void rec_traverse(ir_ctx_t *ctx, symbol_t *func, node_t *r, size_t *stack
             if (ret_val->type == EXPRESSION) {
                 expression(ctx, func, ret_val, stack_top);
             } else {
-                uint16_t ret_val_type = instr_type(ret_val);
+                oper_t ret_val_type = instr_type(ret_val);
                 e_mem_reg(ctx, func, "movq", ret_val, ret_val_type, REG_RAX, stack_top, 0);
             }
 

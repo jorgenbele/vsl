@@ -3,37 +3,13 @@
 
 #define AS_STR(x) #x
 
-const char *node_type_to_string[LAST_NO_TYPE] = {
-    AS_STR(PROGRAM),
-    AS_STR(GLOBAL_LIST),
-    AS_STR(GLOBAL),
-    AS_STR(STATEMENT_LIST),
-    AS_STR(PRINT_LIST),
-    AS_STR(EXPRESSION_LIST),
-    AS_STR(VARIABLE_LIST),
-    AS_STR(ARGUMENT_LIST),
-    AS_STR(PARAMETER_LIST),
-    AS_STR(DECLARATION_LIST),
-    AS_STR(FUNCTION),
-    AS_STR(STATEMENT),
-    AS_STR(BLOCK),
-    AS_STR(ASSIGNMENT_STATEMENT),
-    AS_STR(RETURN_STATEMENT),
-    AS_STR(PRINT_STATEMENT),
-    AS_STR(NULL_STATEMENT),
-    AS_STR(IF_STATEMENT),
-    AS_STR(WHILE_STATEMENT),
-    AS_STR(EXPRESSION),
-    AS_STR(RELATION),
-    AS_STR(DECLARATION),
-    AS_STR(PRINT_ITEM),
-    AS_STR(IDENTIFIER_DATA),
-    AS_STR(NUMBER_DATA),
-    AS_STR(STRING_DATA),
-    AS_STR(FUNCTION_COMMENT),
+#define X(name, val) #name
+const char *node_type_to_string[LAST_NO_TYPE+1] = {
+   __NODE_TYPE_LIST
 };
+#undef X
 
-const bool node_tpr_data[LAST_NO_TYPE] = {
+const bool node_tpr_data[LAST_NO_TYPE+1] = {
     0,    // PROGRAM
     0,    // GLOBAL_LIST
     0,    // GLOBAL
@@ -61,9 +37,10 @@ const bool node_tpr_data[LAST_NO_TYPE] = {
     0,    // NUMBER_DATA
     true, // STRING_DATA
     true, // FUNCTION_COMMENT
+    0,
 };
 
-const bool node_malloc_data[LAST_NO_TYPE] = {
+const bool node_malloc_data[LAST_NO_TYPE+1] = {
     0,    // PROGRAM
     0,    // GLOBAL_LIST
     0,    // GLOBAL
@@ -91,9 +68,10 @@ const bool node_malloc_data[LAST_NO_TYPE] = {
     0,    // NUMBER_DATA
     true, // STRING_DATA
     true, // FUNCTION_COMMENT
+    0,
 };
 
-const bool node_is_list[LAST_NO_TYPE] = {
+const bool node_is_list[LAST_NO_TYPE+1] = {
     0,    // PROGRAM
     true, // GLOBAL_LIST
     0,    // GLOBAL
@@ -121,6 +99,7 @@ const bool node_is_list[LAST_NO_TYPE] = {
     0,    // NUMBER_DATA
     0,    // STRING_DATA
     0,    // FUNCTION_COMMENT
+    0,
 };
 
 const enum node_flag node_type_to_flag[N_NODE_FLAGS] = {
@@ -156,7 +135,7 @@ const enum node_flag node_type_to_flag[N_NODE_FLAGS] = {
 
 #ifdef USE_TREE_CORRECT_RULES
 /* These rules generates matching tree files. */
-const uint32_t node_list_parents[LAST_NO_TYPE] = {
+const uint32_t node_list_parents[LAST_NO_TYPE+1] = {
     0x00,                                          // PROGRAM
     FLAG_PROGRAM            | FLAG_GLOBAL_LIST,    // GLOBAL_LIST
     FLAG_GLOBAL_LIST,                              // GLOBAL
@@ -189,6 +168,7 @@ const uint32_t node_list_parents[LAST_NO_TYPE] = {
     0x00,                                          // NUMBER_DATA
     0x00,                                          // STRING_DATA
     0x00,                                          // FUNCTION_COMMENT
+    0x00
 };
 
 #else /* ifdef USE_TREE_CORRECT_RULES */
@@ -196,7 +176,7 @@ const uint32_t node_list_parents[LAST_NO_TYPE] = {
 /* These rules creates a tree which is more easily used
  * (according to me) since there are fewer nodes. The problem
  * is that they differ from the tree.correct files. */
-const uint32_t node_list_parents[LAST_NO_TYPE] = {
+const uint32_t node_list_parents[LAST_NO_TYPE+1] = {
     0x00,                                          // PROGRAM
     FLAG_PROGRAM           | FLAG_GLOBAL_LIST,     // GLOBAL_LIST
     FLAG_GLOBAL_LIST,                              // GLOBAL
@@ -243,6 +223,7 @@ const uint32_t node_list_parents[LAST_NO_TYPE] = {
     0x00,                                          // NUMBER_DATA
     0x00,                                          // STRING_DATA
     0x00,                                          // FUNCTION_COMMENT
+    0x00
 };
 #endif /* ifdef USE_TREE_CORRECT_RULES */
 

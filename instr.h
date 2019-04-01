@@ -11,7 +11,7 @@
 
 #include "node_src.h"
 
-enum {
+typedef enum {
   REG_RDI = 0x0,
   REG_RSI = 0x1,
   REG_RDX = 0x2,
@@ -21,9 +21,9 @@ enum {
   REG_RAX = 0x6,
   REG_RSP = 0x7,
   REG_RBP = 0x8,
-  REG_R10  = 0x9,
+  REG_R10 = 0x9,
   REG_R11 = 0xA
-};
+} reg_t;
 
 static const char *param_regs[] = {
     "%rdi", "%rsi", "%rdx", "%rcx", "%r8", "%r9"
@@ -35,14 +35,14 @@ static const char *regs[] = {
     "%rdi", "%rsi", "%rdx", "%rcx", "%r8", "%r9", "%rax", "%rsp", "%rbp", "%r10", "%r11"
 };
 
-enum {
+typedef enum {
    T_STACK=0x0,
    T_REG=0x1,
    T_LOCAL=0x2,
    T_GLOBAL=0x4,
    T_CONST=0x8,
    T_PARAM=0x10,
-};
+} oper_t;
 
 /*
  * Stack frame:
@@ -137,20 +137,20 @@ inline static void e_comment(const char *fmt, ...)
 }
 
 inline static void emit_label_nnl(uint64_t label)                  { printf("\n.L%" PRId64 ":", label);          }
-inline static void e0_reg_nnl(const char *instr, uint8_t reg)      { printf("\t%s %s", instr, regs[reg]);        }
+inline static void e0_reg_nnl(const char *instr, reg_t reg)      { printf("\t%s %s", instr, regs[reg]);        }
 inline static void e0_nnl(const char *instr)                       { printf("\t%s", instr);                      }
 inline static void e0_imm_nnl(const char *instr, int_type imm)     { printf("\t%s .L%" PRIdit "", instr, imm);   }
 inline static void e0_label_nnl(const char *instr, uint64_t label) { printf("\t%s .L%" PRId64 "", instr, label); }
-inline static void e_reg_reg_nnl(const char *instr, uint8_t reg_left, uint8_t reg_right) { printf("\t%s %s, %s", instr, regs[reg_left], regs[reg_right]); }
-inline static void e_imm_reg_nnl(const char *instr, int_type imm, uint8_t reg) { printf("\t%s $%" PRIdit ", %s", instr, imm, regs[reg]); }
+inline static void e_reg_reg_nnl(const char *instr, reg_t reg_left, uint8_t reg_right) { printf("\t%s %s, %s", instr, regs[reg_left], regs[reg_right]); }
+inline static void e_imm_reg_nnl(const char *instr, int_type imm, reg_t reg) { printf("\t%s $%" PRIdit ", %s", instr, imm, regs[reg]); }
 
 inline static void emit_label(uint64_t label)                  { emit_label_nnl(label);  putchar('\n'); }
-inline static void e0_reg(const char *instr, uint8_t reg)      { e0_reg_nnl(instr, reg); putchar('\n'); }
+inline static void e0_reg(const char *instr, reg_t reg)      { e0_reg_nnl(instr, reg); putchar('\n'); }
 inline static void e0(const char *instr)                       { e0_nnl(instr);              putchar('\n'); }
 inline static void e0_imm(const char *instr, int_type imm)     { e0_imm_nnl(instr, imm);     putchar('\n'); }
 inline static void e0_label(const char *instr, uint64_t label) { e0_label_nnl(instr, label); putchar('\n'); }
-inline static void e_reg_reg(const char *instr, uint8_t reg_left, uint8_t reg_right) { e_reg_reg_nnl(instr, reg_left, reg_right); putchar('\n'); }
-inline static void e_imm_reg(const char *instr, int_type imm, uint8_t reg) { e_imm_reg_nnl(instr, imm, reg); putchar('\n'); }
+inline static void e_reg_reg(const char *instr, reg_t reg_left, uint8_t reg_right) { e_reg_reg_nnl(instr, reg_left, reg_right); putchar('\n'); }
+inline static void e_imm_reg(const char *instr, int_type imm, reg_t reg) { e_imm_reg_nnl(instr, imm, reg); putchar('\n'); }
 
 
 inline static void e_expr_comment(node_t *expr)
@@ -161,7 +161,7 @@ inline static void e_expr_comment(node_t *expr)
     putchar('\n');
 }
 
-inline static void e_param_comment(node_t *left, uint8_t t_left, node_t *right, uint8_t t_right)
+inline static void e_param_comment(node_t *left, oper_t t_left, node_t *right, uint8_t t_right)
 {
     if (!right) {
         if (t_left == T_CONST ) {
@@ -183,7 +183,7 @@ inline static void e_param_comment(node_t *left, uint8_t t_left, node_t *right, 
     }
 }
 
-inline static void e_param(ir_ctx_t *ctx, symbol_t *func, node_t *n, uint8_t t_n, size_t *stack_top, size_t stack_offset)
+inline static void e_param(ir_ctx_t *ctx, symbol_t *func, node_t *n, oper_t t_n, size_t *stack_top, size_t stack_offset)
 {
     (void) ctx; (void) stack_top;
     uint64_t saved = VEC_LEN(func->locals);
@@ -202,22 +202,22 @@ inline static void e_param(ir_ctx_t *ctx, symbol_t *func, node_t *n, uint8_t t_n
 }
 
 inline static void e0_mem_nnl(ir_ctx_t *ctx, symbol_t *func, const char *instr,
-                               node_t *left, uint8_t t_left, size_t *stack_top, size_t stack_offset)
+                               node_t *left, oper_t t_left, size_t *stack_top, size_t stack_offset)
 {
     printf("\t%s ", instr);
     e_param(ctx, func, left, t_left, stack_top, stack_offset);
 }
 
 inline static void e_mem_reg_nnl(ir_ctx_t *ctx, symbol_t *func, const char *instr,
-                               node_t *left, uint8_t t_left, uint8_t reg, size_t *stack_top, size_t stack_offset)
+                               node_t *left, oper_t t_left, reg_t reg, size_t *stack_top, size_t stack_offset)
 {
     printf("\t%s ", instr);
     e_param(ctx, func, left, t_left, stack_top, stack_offset);
     printf(", %s", regs[reg]);
 }
 
-inline static void e_reg_mem_nnl(ir_ctx_t *ctx, symbol_t *func, const char *instr, uint8_t reg,
-                               node_t *right, uint8_t t_right, size_t *stack_top, size_t stack_offset)
+inline static void e_reg_mem_nnl(ir_ctx_t *ctx, symbol_t *func, const char *instr, reg_t reg,
+                               node_t *right, oper_t t_right, size_t *stack_top, size_t stack_offset)
 {
     (void) ctx; (void) func;
     printf("\t%s ", instr);
@@ -226,7 +226,7 @@ inline static void e_reg_mem_nnl(ir_ctx_t *ctx, symbol_t *func, const char *inst
 }
 
 inline static void e_imm_mem_nnl(ir_ctx_t *ctx, symbol_t *func, const char *instr, int_type imm,
-                               node_t *right, uint8_t t_right, size_t *stack_top, size_t stack_offset)
+                               node_t *right, oper_t t_right, size_t *stack_top, size_t stack_offset)
 {
     (void) ctx; (void) func;
     printf("\t%s ", instr);
@@ -236,7 +236,7 @@ inline static void e_imm_mem_nnl(ir_ctx_t *ctx, symbol_t *func, const char *inst
 
 
 inline static void e0_mem(ir_ctx_t *ctx, symbol_t *func, const char *instr,
-                               node_t *left, uint8_t t_left, size_t *stack_top, size_t stack_offset)
+                               node_t *left, oper_t t_left, size_t *stack_top, size_t stack_offset)
 {
     e0_mem_nnl(ctx, func, instr, left, t_left, stack_top, stack_offset);
     //e_param_comment(left, t_left, NULL, 0);
@@ -244,15 +244,15 @@ inline static void e0_mem(ir_ctx_t *ctx, symbol_t *func, const char *instr,
 }
 
 inline static void e_mem_reg(ir_ctx_t *ctx, symbol_t *func, const char *instr,
-                               node_t *left, uint8_t t_left, uint8_t reg, size_t *stack_top, size_t stack_offset)
+                               node_t *left, oper_t t_left, reg_t reg, size_t *stack_top, size_t stack_offset)
 {
     e_mem_reg_nnl(ctx, func, instr, left, t_left, reg, stack_top, stack_offset);
     //e_param_comment(left, t_left, NULL, 0);
     putchar('\n');
 }
 
-inline static void e_reg_mem(ir_ctx_t *ctx, symbol_t *func, const char *instr, uint8_t reg,
-                               node_t *right, uint8_t t_right, size_t *stack_top, size_t stack_offset)
+inline static void e_reg_mem(ir_ctx_t *ctx, symbol_t *func, const char *instr, reg_t reg,
+                               node_t *right, oper_t t_right, size_t *stack_top, size_t stack_offset)
 {
     e_reg_mem_nnl(ctx, func, instr, reg, right, t_right, stack_top, stack_offset);
     //e_param_comment(right, t_right, NULL, 0);
@@ -260,7 +260,7 @@ inline static void e_reg_mem(ir_ctx_t *ctx, symbol_t *func, const char *instr, u
 }
 
 inline static void e_imm_mem(ir_ctx_t *ctx, symbol_t *func, const char *instr, int_type imm,
-                               node_t *right, uint8_t t_right, size_t *stack_top, size_t stack_offset)
+                               node_t *right, oper_t t_right, size_t *stack_top, size_t stack_offset)
 {
     e_imm_mem_nnl(ctx, func, instr, imm, right, t_right, stack_top, stack_offset);
     //e_param_comment(right, t_right, NULL, 0);
