@@ -34,10 +34,6 @@ struct symbol {
     /* MODIFIED: Use a vector instead of a hashtable.
      * The sequence number is the index into this table. */
     VEC(symbol_t_ptr) *locals;
-
-    size_t saved_on_stack;
-    size_t scratch_reg_i;
-    size_t saved_reg_i;
 };
 
 typedef uint64_t label_t;
