@@ -11,45 +11,57 @@
  */
 //#define USE_TREE_CORRECT_RULES
 
+
+#define __NODE_TYPE_LIST                                        \
+        X(PROGRAM              ,  0),                           \
+        X(GLOBAL_LIST          ,  1),                           \
+        X(GLOBAL               ,  2),                           \
+        X(STATEMENT_LIST       ,  3),                           \
+        X(PRINT_LIST           ,  4),                           \
+        X(EXPRESSION_LIST      ,  5),                           \
+        X(VARIABLE_LIST        ,  6),                           \
+        X(ARGUMENT_LIST        ,  7),                           \
+        X(PARAMETER_LIST       ,  8),                           \
+        X(DECLARATION_LIST     ,  9),                           \
+        X(FUNCTION             , 10),                           \
+        X(STATEMENT            , 11),                           \
+        X(BLOCK                , 12),                           \
+        X(ASSIGNMENT_STATEMENT , 13),                           \
+        X(RETURN_STATEMENT     , 14),                           \
+        X(PRINT_STATEMENT      , 15),                           \
+        X(NULL_STATEMENT       , 16),                           \
+        X(IF_STATEMENT         , 17),                           \
+        X(WHILE_STATEMENT      , 18),                           \
+        X(EXPRESSION           , 19),                           \
+        X(RELATION             , 20),                           \
+        X(DECLARATION          , 21),                           \
+        X(PRINT_ITEM           , 22),                           \
+        X(IDENTIFIER_DATA      , 23),                           \
+        X(NUMBER_DATA          , 24),                           \
+        X(STRING_DATA          , 25),                           \
+                                                                \
+        X(BREAK_STATEMENT      , 26),                           \
+                                                                \
+                                                                \
+    /* Python like doc-strings that are attached to function    \
+     * nodes (node.comment).                                    \
+     * Does not change the ast), so it can be ignored. */       \
+        X(FUNCTION_COMMENT     , 27),                           \
+                                                                \
+        /* Used to get the number of different node types. */   \
+        X(LAST_NO_TYPE         , 28)                            \
+
+
 /*
  * Enumeration of node types.
  */
+#define X(name, value) \
+    name = value
 enum node_type {
-    PROGRAM              =  0,
-    GLOBAL_LIST          =  1,
-    GLOBAL               =  2,
-    STATEMENT_LIST       =  3,
-    PRINT_LIST           =  4,
-    EXPRESSION_LIST      =  5,
-    VARIABLE_LIST        =  6,
-    ARGUMENT_LIST        =  7,
-    PARAMETER_LIST       =  8,
-    DECLARATION_LIST     =  9,
-    FUNCTION             = 10,
-    STATEMENT            = 11,
-    BLOCK                = 12,
-    ASSIGNMENT_STATEMENT = 13,
-    RETURN_STATEMENT     = 14,
-    PRINT_STATEMENT      = 15,
-    NULL_STATEMENT       = 16,
-    IF_STATEMENT         = 17,
-    WHILE_STATEMENT      = 18,
-    EXPRESSION           = 19,
-    RELATION             = 20,
-    DECLARATION          = 21,
-    PRINT_ITEM           = 22,
-    IDENTIFIER_DATA      = 23,
-    NUMBER_DATA          = 24,
-    STRING_DATA          = 25,
-
-    /* Python like doc-strings that are attached to function
-     * nodes (node.comment).
-     * Does not change the ast, so it can be ignored. */
-    FUNCTION_COMMENT     = 26,
-
-    /* Used to get the number of different node types. */
-    LAST_NO_TYPE         = 27
+    __NODE_TYPE_LIST
 };
+#undef X
+
 
 #define NODE_TYPE_IS_STATEMENT(type)                                    \
     ((FLAG_ASSIGNMENT_STATEMENT | FLAG_STATEMENT                        \
@@ -62,43 +74,25 @@ enum node_type {
 
 #define NODE_TYPE_TO_FLAG(type) ((uint32_t) (1<<((type)+1)))
 
-#define N_NODE_FLAGS 29
+#define N_NODE_FLAGS (LAST_NO_TYPE+1)
+
+#define __NODE_FLAG(type) FLAG_##type = NODE_TYPE_TO_FLAG(type)
 
 /* Node types as flags.
  * The above table is not specified as flags because that would make
  * the lookup tables large. */
-enum node_flag {
-    FLAG_PROGRAM               = (uint32_t)  1<<1,
-    FLAG_GLOBAL_LIST           = (uint32_t)  1<<2,
-    FLAG_GLOBAL                = (uint32_t)  1<<3,
-    FLAG_STATEMENT_LIST        = (uint32_t)  1<<4,
-    FLAG_PRINT_LIST            = (uint32_t)  1<<5,
-    FLAG_EXPRESSION_LIST       = (uint32_t)  1<<6,
-    FLAG_VARIABLE_LIST         = (uint32_t)  1<<7,
-    FLAG_ARGUMENT_LIST         = (uint32_t)  1<<8,
-    FLAG_PARAMETER_LIST        = (uint32_t)  1<<9,
-    FLAG_DECLARATION_LIST      = (uint32_t) 1<<10,
-    FLAG_FUNCTION              = (uint32_t) 1<<11,
-    FLAG_STATEMENT             = (uint32_t) 1<<12,
-    FLAG_BLOCK                 = (uint32_t) 1<<13,
-    FLAG_ASSIGNMENT_STATEMENT  = (uint32_t) 1<<14,
-    FLAG_RETURN_STATEMENT      = (uint32_t) 1<<15,
-    FLAG_PRINT_STATEMENT       = (uint32_t) 1<<16,
-    FLAG_NULL_STATEMENT        = (uint32_t) 1<<17,
-    FLAG_IF_STATEMENT          = (uint32_t) 1<<18,
-    FLAG_WHILE_STATEMENT       = (uint32_t) 1<<19,
-    FLAG_EXPRESSION            = (uint32_t) 1<<20,
-    FLAG_RELATION              = (uint32_t) 1<<21,
-    FLAG_DECLARATION           = (uint32_t) 1<<22,
-    FLAG_PRINT_ITEM            = (uint32_t) 1<<23,
-    FLAG_IDENTIFIER_DATA       = (uint32_t) 1<<24,
-    FLAG_NUMBER_DATA           = (uint32_t) 1<<25,
-    FLAG_STRING_DATA           = (uint32_t) 1<<26,
-    FLAG_FUNCTION_COMMENT      = (uint32_t) 1<<27,
+#define X(name, value) \
+    __NODE_FLAG(name)
 
-    FLAG__UNUSED               = (uint32_t) 1<<28,
-    FLAG_KEEP_CHILDREN_TYPE    = (uint32_t) 1<<29,
+enum node_flag {
+    __NODE_TYPE_LIST,
+
+    FLAG__UNUSED            = NODE_TYPE_TO_FLAG(LAST_NO_TYPE),
+    FLAG_KEEP_CHILDREN_TYPE = NODE_TYPE_TO_FLAG(LAST_NO_TYPE) + 1,
 };
+#undef X
+
+#undef __NODE_FLAG
 
 /* typedef for the integer type to use in the compiler */
 typedef int64_t int_type;
