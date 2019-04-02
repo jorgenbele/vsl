@@ -137,21 +137,20 @@ inline static void e_comment(const char *fmt, ...)
 }
 
 inline static void emit_label_nnl(uint64_t label)                  { printf("\n.L%" PRId64 ":", label);          }
-inline static void e0_reg_nnl(const char *instr, reg_t reg)      { printf("\t%s %s", instr, regs[reg]);        }
+inline static void e0_reg_nnl(const char *instr, reg_t reg)        { printf("\t%s %s", instr, regs[reg]);        }
 inline static void e0_nnl(const char *instr)                       { printf("\t%s", instr);                      }
 inline static void e0_imm_nnl(const char *instr, int_type imm)     { printf("\t%s .L%" PRIdit "", instr, imm);   }
 inline static void e0_label_nnl(const char *instr, uint64_t label) { printf("\t%s .L%" PRId64 "", instr, label); }
 inline static void e_reg_reg_nnl(const char *instr, reg_t reg_left, uint8_t reg_right) { printf("\t%s %s, %s", instr, regs[reg_left], regs[reg_right]); }
 inline static void e_imm_reg_nnl(const char *instr, int_type imm, reg_t reg) { printf("\t%s $%" PRIdit ", %s", instr, imm, regs[reg]); }
 
-inline static void emit_label(uint64_t label)                  { emit_label_nnl(label);  putchar('\n'); }
-inline static void e0_reg(const char *instr, reg_t reg)      { e0_reg_nnl(instr, reg); putchar('\n'); }
+inline static void emit_label(uint64_t label)                  { emit_label_nnl(label);      putchar('\n'); }
+inline static void e0_reg(const char *instr, reg_t reg)        { e0_reg_nnl(instr, reg);     putchar('\n'); }
 inline static void e0(const char *instr)                       { e0_nnl(instr);              putchar('\n'); }
 inline static void e0_imm(const char *instr, int_type imm)     { e0_imm_nnl(instr, imm);     putchar('\n'); }
 inline static void e0_label(const char *instr, uint64_t label) { e0_label_nnl(instr, label); putchar('\n'); }
 inline static void e_reg_reg(const char *instr, reg_t reg_left, uint8_t reg_right) { e_reg_reg_nnl(instr, reg_left, reg_right); putchar('\n'); }
 inline static void e_imm_reg(const char *instr, int_type imm, reg_t reg) { e_imm_reg_nnl(instr, imm, reg); putchar('\n'); }
-
 
 inline static void e_expr_comment(node_t *expr)
 {
