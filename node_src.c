@@ -207,6 +207,7 @@ static void emit_statement(const node_t *n)
         case IF_STATEMENT:          { emit_if_statement(n); break; };
         case WHILE_STATEMENT:       { emit_while_statement(n); break; };
         case BLOCK:                 { emit_block(n); break; };
+        case ASM_STATEMENT:         { emit_str(n->data_char_ptr); break; };
         default: error("Unexpected statement type!", n);
     }
 }

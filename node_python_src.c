@@ -313,6 +313,7 @@ static void emit_statement(const node_t *n)
         case WHILE_STATEMENT:       { emit_while_statement(n); break; };
         case NULL_STATEMENT:        { emit_null_statement(n); break; };
         case BLOCK:                 { emit_block(n); break; };
+        case ASM_STATEMENT:         { error("asm statements are not supported", n); };
         default: error("Unexpected statement type!", n);
     }
 }

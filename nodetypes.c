@@ -37,6 +37,7 @@ const bool node_tpr_data[LAST_NO_TYPE+1] = {
     0,    // NUMBER_DATA
     true, // STRING_DATA
     true, // FUNCTION_COMMENT
+    true, // ASM_STATEMENT
     0,
 };
 
@@ -68,6 +69,7 @@ const bool node_malloc_data[LAST_NO_TYPE+1] = {
     0,    // NUMBER_DATA
     true, // STRING_DATA
     true, // FUNCTION_COMMENT
+    true, // ASM_STATEMENT
     0,
 };
 
@@ -99,10 +101,12 @@ const bool node_is_list[LAST_NO_TYPE+1] = {
     0,    // NUMBER_DATA
     0,    // STRING_DATA
     0,    // FUNCTION_COMMENT
+    true, // ASM_STATEMENT
     0,
 };
 
-const enum node_flag node_type_to_flag[N_NODE_FLAGS] = {
+#define X(name, val) FLAG_##name
+const enum node_flag node_type_to_flag[N_NODE_FLAGS+1] = {
     FLAG_PROGRAM,               // PROGRAM
     FLAG_GLOBAL_LIST,           // GLOBAL_LIST
     FLAG_GLOBAL,                // GLOBAL
@@ -129,9 +133,15 @@ const enum node_flag node_type_to_flag[N_NODE_FLAGS] = {
     FLAG_IDENTIFIER_DATA,       // IDENTIFIER_DATA
     FLAG_NUMBER_DATA,           // NUMBER_DATA
     FLAG_STRING_DATA,           // STRING_DATA
+
+    FLAG_FUNCTION_COMMENT,      // FUNCTION_COMMENT
+    FLAG_ASM_STATEMENT,         // ASM_STATEMENT
+
     FLAG__UNUSED,
-    FLAG_KEEP_CHILDREN_TYPE,      // FLAG: Keep the children type
+    FLAG_KEEP_CHILDREN_TYPE,    // FLAG: Keep the children type
+    0x00
 };
+#undef X
 
 #ifdef USE_TREE_CORRECT_RULES
 /* These rules generates matching tree files. */
@@ -168,6 +178,7 @@ const uint32_t node_list_parents[LAST_NO_TYPE+1] = {
     0x00,                                          // NUMBER_DATA
     0x00,                                          // STRING_DATA
     0x00,                                          // FUNCTION_COMMENT
+    0x00,                                          // ASM_STATEMENT
     0x00
 };
 
@@ -223,6 +234,7 @@ const uint32_t node_list_parents[LAST_NO_TYPE+1] = {
     0x00,                                          // NUMBER_DATA
     0x00,                                          // STRING_DATA
     0x00,                                          // FUNCTION_COMMENT
+    0x00,                                          // ASM_STATEMENT
     0x00
 };
 #endif /* ifdef USE_TREE_CORRECT_RULES */

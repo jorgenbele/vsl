@@ -39,16 +39,15 @@
         X(NUMBER_DATA          , 24),                           \
         X(STRING_DATA          , 25),                           \
                                                                 \
-        X(BREAK_STATEMENT      , 26),                           \
-                                                                \
                                                                 \
     /* Python like doc-strings that are attached to function    \
      * nodes (node.comment).                                    \
      * Does not change the ast), so it can be ignored. */       \
-        X(FUNCTION_COMMENT     , 27),                           \
+        X(FUNCTION_COMMENT     , 26),                           \
+        X(ASM_STATEMENT        , 27),                           \
                                                                 \
         /* Used to get the number of different node types. */   \
-        X(LAST_NO_TYPE         , 28)                            \
+        X(LAST_NO_TYPE         , 29)                            \
 
 
 /*
@@ -160,6 +159,6 @@ extern const uint32_t node_list_parents[LAST_NO_TYPE+1];
  * currently not used as the NODE_TYPE_TO_FLAG macro can be
  * used instead..
  */
-extern const enum node_flag node_type_to_flag[N_NODE_FLAGS];
+extern const enum node_flag node_type_to_flag[N_NODE_FLAGS+1];
 
 #endif /* ifndef __NODETYPES_H_ */

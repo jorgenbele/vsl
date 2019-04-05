@@ -49,6 +49,9 @@ int yycolumn = 0;
 "do"                   { return DO;           }
 "var"                  { return VAR;          }
 "continue"             { return CONTINUE;     } /* NOT SPECIFIED IN LIST!! */
+
+"asm"[^\n]*           { SAVE_STR; return ASM; }
+
 [a-zA-Z_][0-9a-zA-Z_]* { SAVE_STR; return IDENTIFIER; }
 .                      { return yytext[0];    }
 %%

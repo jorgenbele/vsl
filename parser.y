@@ -41,6 +41,8 @@
 %token  <str>      IDENTIFIER STRING
 %token  <integer>  NUMBER
 
+%token  <str>     ASM /* Assembly line. */
+
 %token  <str>      FUNCTION_COMMENT_PARSER
 
 /* Non-terminals types */
@@ -52,6 +54,7 @@
 %type   <node> block relation
 %type   <node> identifier number string
 
+%type   <node> asm_statement
 %type   <node> function_comment
 
 %%
@@ -114,7 +117,10 @@ statement:
         |    while_statement         { $$ = C1(STATEMENT, NULL, $1); }
         |    null_statement          { $$ = C1(STATEMENT, NULL, $1); }
         |    block                   { $$ = C1(STATEMENT, NULL, $1); }
+        |    asm_statement           { $$ = C1(STATEMENT, NULL, $1); }
         ;
+
+asm_statement: ASM { $$ = C0(ASM_STATEMENT,     NODE_DATA_CAST $<str>1);     } ;
 
 block:
              OPENBLOCK declaration_list statement_list CLOSEBLOCK    { $$ = C2(BLOCK, NULL, $2, $3); }

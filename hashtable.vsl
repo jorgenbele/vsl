@@ -1,0 +1,234 @@
+// This uses the tlhash functions to implement
+// hashtable functionality in vsl.
+// Has to be linked with tlhash.c
+
+#ifndef GLOBAL_
+#define GLOBAL_
+// _ has to be defined as a variable
+var _
+#endif
+
+#ifndef __MAIN__
+#define __MAIN__
+
+// Test the hash table
+def main()
+begin
+    var htable, array, buf, alloc_ptr, bufsize, temp, temp2, keysize, keyptr, valsize, valptr, strkeyptr, strvalptr
+    htable := ht_create(1024)
+    temp := ht_size(htable)
+    print "Size of htable is", temp
+
+    bufsize := 1024
+    buf := malloc(bufsize)
+    alloc_ptr := buf
+
+    keysize := 8
+    keyptr := alloc_ptr
+    alloc_ptr := buf + keysize
+
+    valsize := 8
+    valptr := alloc_ptr
+    alloc_ptr := alloc_ptr + valsize
+
+    // Uses quads since strings are painful atm.
+    _ := insertq(htable, keyptr, 1234, 1337) // Insert (1234, 1337)
+    _ := insertq(htable, keyptr, 404, 41)    // Insert (1234, 1337)
+
+    print "Size of htable is now", ht_size(htable) // Should be 2
+
+    print "lookup(1234) ==>", lookupq(htable, keyptr, valptr, 1234) // Should print 1337
+    print "lookup(404) ==>",  lookupq(htable, keyptr, valptr, 404)  // Should print 41
+
+    _ := removeq(htable, keyptr, 404)
+    print "lookup(404) ==>",  lookupq(htable, keyptr, valptr, 404) // Should be 0
+    print "Size of htable is now", ht_size(htable)                 // Should be 1
+
+
+    // STRINGS
+    // Strings are painful:
+    _ := memset(buf, 0, bufsize)
+
+    // Reserve memory for keys and values.
+    strkeyptr := alloc_ptr
+    alloc_ptr := alloc_ptr + 128
+    _ := memset(strkeyptr, 0, 128)
+
+    // Original value to be inserted.
+    strvalptr := alloc_ptr
+    alloc_ptr := alloc_ptr + 128
+    _ := memset(strvalptr, 0, 128)
+
+    // Using strings encoded in quads.
+    print "Inserting key brian=", 474080703074, "value awesome=", 28549298092603233
+    _ := keyq(strkeyptr, 474080703074)      // brian
+    _ := setq(strvalptr, 28549298092603233) // awesome
+
+    print "strvalptr: ptr=", strvalptr, "val=", getq(strvalptr) // awesome
+
+    _ := ht_insert(htable, strkeyptr, 5, strvalptr)
+
+    _ := ht_lookup(htable, strkeyptr, 5, valptr)
+    temp2 := getq(valptr)
+    temp2 := getq(temp2)
+    print "lookup(brian) ==>", valptr, temp2
+    print "Size of htable is now", ht_size(htable)
+
+    // reset key
+    _ := memset(strkeyptr, 0, 128)
+
+    // Reuse strval pointer but with new memory
+    strvalptr := alloc_ptr
+    alloc_ptr := alloc_ptr + 128
+    _ := memset(strvalptr, 0, 128)
+
+    // Using strings encoded in quads.
+    print "Inserting key kerningham=", 7523103101649315179, 28001, "value computer genius=", 8243122740717776739, 32498718005880608
+    // kerningham
+    _ := setq(strkeyptr, 7523103101649315179)
+    _ := setq(strkeyptr+8, 28001)
+
+    //  computer genius
+    _ := setq(strvalptr, 8243122740717776739)
+    _ := setq(strvalptr+8, 32498718005880608)
+
+    print "strkeyptr: ptr=", strkeyptr, "val=", getq(strkeyptr), getq(strkeyptr+8)
+    print "strvalptr: ptr=", strvalptr, "val=", getq(strvalptr), getq(strvalptr+8)
+
+    _ := ht_insert(htable, strkeyptr, 10, strvalptr)
+
+    _ := ht_lookup(htable, strkeyptr, 10, valptr)
+    temp2 := getq(valptr)
+    temp := getq(temp2)
+    temp2 := getq(temp2+8)
+    print "lookup(kerningham) ==> ptr=", valptr, "val=", temp, temp2
+    print "Size of htable is now", ht_size(htable)
+
+    _ := ht_destroy(htable)
+
+    _ := free(buf)
+
+    return 0
+end
+#endif
+
+
+// Import standard c wrappers
+// Uses the c preprocessor to include files..
+#include "libvsl.vsl"
+
+// Ease of use functions for quad key and value.
+def keyq(keyptr, quad)
+begin
+    _ := setq(keyptr, quad)
+    return keyptr
+end
+
+// tlhash wrapper functions
+def removeq(table, keyptr, keyq, valueq)
+begin
+    var t1, t2
+    t1 := keyq(keyptr, keyq)
+    return ht_remove(table, keyptr, 8)
+end
+
+def insertq(table, keyptr, keyq, valueq)
+begin
+    var t1, t2
+    t1 := keyq(keyptr, keyq)
+    return ht_insert(table, keyptr, 8, valueq)
+end
+
+def lookupq(table, keyptr, valptr, keyq)
+begin
+    var t1, t2
+    t1 := keyq(keyptr, keyq)
+    t2 := ht_lookup(table, t1, 8, valptr)
+    if t2 = 0 then return 0
+    return getq(t2)
+end
+
+
+
+
+// NOTE: Function call parameters cannot be expressions other than:
+//       constants and variables since these functions assumes
+//       that the paramters are stored in registers which could
+//       be overwritten.
+
+// Create a hash table.
+def ht_create(n_buckets)
+begin
+    // n_buckets  // -16(%rbp)
+    var table_ptr // -8(%rbp)
+
+    //table_ptr := malloc(24) // The tlhash_t struct is 3*8 bytes.
+    table_ptr := malloc(24) // The tlhash_t struct is 3*8 bytes.
+    _ := memset(table_ptr, 0, 24)
+
+    // call tlhash_init(table_ptr, n_buckets)
+    asm movq -8(%rbp), %rdi
+    asm movq -16(%rbp), %rsi
+    asm call tlhash_init
+
+    return table_ptr
+end
+
+// Destroy a hash table.
+def ht_destroy(table_ptr)
+begin
+    // call tlhash_finalize(table_ptr)
+    asm movq -8(%rbp), %rdi
+    asm call tlhash_finalize
+
+    return free(table_ptr)
+end
+
+// Insert a key value pair into a hash table
+// Returns 1 on success
+def ht_insert(table_ptr, key_ptr, keylen, val_ptr)
+begin
+    var ret
+    asm call tlhash_insert
+    asm movq %rax, -8(%rbp)
+
+    if ret = 0 then
+       return 1
+    return 0
+end
+
+// Lookup a key in the hash table, sets the value in val_ptr to
+// the pointer to a value.
+// Returns the value on success, otherwise 0
+def ht_lookup(table_ptr, key_ptr, keylen, val_ptr)
+begin
+    var ret
+    asm call tlhash_lookup
+    asm movq %rax, -8(%rbp)
+
+    if ret = 0 then
+       return val_ptr
+    return 0
+end
+
+// Remove a key from the hash table
+// Returns the 1 on success
+def ht_remove(table_ptr, key_ptr, keylen)
+begin
+    var ret
+    asm call tlhash_remove
+    asm movq %rax, -8(%rbp)
+
+    if ret = 0 then
+       return 1
+    return 0
+end
+
+// Returns the hash table size
+def ht_size(table_ptr)
+begin
+    var ret
+    asm call tlhash_size
+    asm movq %rax, -8(%rbp)
+    return ret
+end

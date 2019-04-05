@@ -450,6 +450,12 @@ static void rec_traverse(ir_ctx_t *ctx, symbol_t *func, node_t *r, size_t *stack
             break;
         }
 
+        case ASM_STATEMENT: {
+            inline_src(r);
+            e0(r->data_char_ptr + 4); // skip first 4 bytes: "asm ".
+            break;
+        }
+
         case EXPRESSION: expression(ctx, func, r, stack_top); break; // Result is stored in %rax.
 
         case RETURN_STATEMENT: {

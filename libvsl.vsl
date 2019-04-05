@@ -1,0 +1,113 @@
+#ifndef __LIBVSL_
+
+def print_buf(buf, size)
+begin
+    var i
+    i := 0
+    while i < size do
+    begin
+        print "buf[", i, "] = ", getb(buf+i)
+        i := i + 1
+    end
+end
+
+def getb(ptr)
+begin
+    // ptr is stored at -16(%rbp)
+    var ret_byte // stored at -8(%rbp)
+
+    asm movq -16(%rbp), %rdi  # load location which ptr points to into rdi
+    asm movq (%rdi), %rax     # write *ptr (*rdi) to %rax
+    asm movzbq %al, %rdx      # keep only lower 8 bits
+    asm movq %rdx, -8(%rbp)
+
+    return ret_byte
+end
+
+def setb(ptr, byte)
+begin
+    // ptr is stored at -8(%rbp)
+    // byte is stored at -16(%rbp)
+    asm movq -16(%rbp), %rax  # load byte into al
+    asm movzbq %al, %rax      # keep only lower 8 bits
+    asm movq -8(%rbp), %rdi   # load location which ptr points to rdi
+    asm movq %rax, (%rdi)     # write al to *ptr (*rdi)
+    return 0
+end
+
+def getq(ptr)
+begin
+    // ptr is stored at -16(%rbp)
+    var ret_quad // stored at -8(%rbp)
+
+    asm movq -16(%rbp), %rdi  # load location which ptr points to into rdi
+    asm movq (%rdi), %rax     # write *ptr (*rdi) to %rax
+    asm movq %rax, -8(%rbp)
+
+    return ret_quad
+end
+
+def setq(ptr, quad)
+begin
+    // ptr is stored at -8(%rbp)
+    // quad is stored at -16(%rbp)
+    asm movq -16(%rbp), %rax  # load byte into al
+    asm movq -8(%rbp), %rdi   # load location which ptr points to rdi
+    asm movq %rax, (%rdi)     # write al to *ptr (*rdi)
+    return 0
+end
+
+
+def strlen(str)
+begin
+    var len
+    asm call strlen
+    asm movq %rax, -8(%rbp)
+    return len
+end
+
+def strncat(dest, src, n)
+begin
+    var ptr
+    asm call strncat
+    asm movq %rax, -8(%rbp)
+    return ptr
+end
+
+def memset(ptr, val, size)
+begin
+    asm call memset
+end
+
+def malloc(size)
+begin
+    var ptr
+    asm call malloc
+    asm movq %rax, -8(%rbp)
+    return ptr
+end
+
+def write(fd, buf, count)
+begin
+    var ret
+    asm call write
+    asm movq %rax, -8(%rbp)
+    return ret
+end
+
+def read(fd, buf, count)
+begin
+    var ret
+    asm call read
+    asm movq %rax, -8(%rbp)
+    return ret
+end
+
+def free(ptr)
+begin
+    asm movq -8(%rbp), %rdi
+    asm call free
+    return 0
+end
+
+#endif /*  __LIBVSL_ */

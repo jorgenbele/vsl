@@ -7,5 +7,9 @@
 # --> ffi_vsl is the finished binary.
 ./compiler --export --no-main < ffi.vsl > ffi.s
 ./compiler --header < ffi.vsl > ffi.h
+
+./compiler --export --no-main < inline_asm.vsl > inline_asm.s
+./compiler --header < inline_asm.vsl > inline_asm.h
+
 gcc -c ffi.c
-gcc -o ffi_vsl ffi.s ffi.o -fPIC -fPIE
+gcc -o ffi_vsl ffi.s inline_asm.s ffi.o -fPIC -fPIE
