@@ -1,0 +1,10 @@
+#+TITLE: TDT4205 Compiler Construction (2019)
+#+SUBTITLE: Assignment 2
+#+AUTHOR: Jørgen Bele Reinfjell
+#+OPTIONS: toc:nil
+
+#+BEGIN_SRC bison
+S: E
+E: EkT | TT | T
+T: d | e
+#+END_SRC
