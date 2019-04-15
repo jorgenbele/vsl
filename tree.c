@@ -5,7 +5,7 @@
 
 /* NOTE: Changed from "destroy subtree" to "tree_destroy",
  *       as a subtree is always tree itself. */
-void tree_destroy(node_t *n)
+void tree_destroy(node_t n[static 1])
 {
     for (uint64_t i = 0; i < n->n_children; i++) {
         tree_destroy(n->children[i]);
@@ -22,7 +22,7 @@ void tree_destroy(node_t *n)
 
 /* eval_const_expr(): Evaluate constant expressions,
  * for now only immediate integer arithmetic. */
-static void eval_const_expr(node_t *root, vec_node_t_ptr *abandoned)
+static void eval_const_expr(node_t *root, vec_node_t_ptr abandoned[static 1])
 {
     if (!root) return;
 
@@ -94,7 +94,7 @@ static void eval_const_expr(node_t *root, vec_node_t_ptr *abandoned)
  *    1. empty (no data) EXPRESSION nodes only containing one child,
  *    2. STATEMENT nodes only containing one child,
  */
-static void eliminate_inter(node_t *root, vec_node_t_ptr *abandoned)
+static void eliminate_inter(node_t *root, vec_node_t_ptr abandoned[static 1])
 {
     if (!root) return;
 
@@ -123,7 +123,7 @@ static void eliminate_inter(node_t *root, vec_node_t_ptr *abandoned)
  * from the parsing stage. Adds *_LIST children of compatible types
  * as children to the head *_LIST node, and adds the previously
  * unneeded nodes to 'abandoned'. */
-static void flatten(node_t *root, vec_node_t_ptr *abandoned)
+static void flatten(node_t *root, vec_node_t_ptr abandoned[static 1])
 {
     if (!root) return;
 
@@ -190,7 +190,7 @@ static void flatten(node_t *root, vec_node_t_ptr *abandoned)
  *    Used to fix mistake; replace empty PARAMETER_LIST
  *    (which wont merge to VARIABLE_LIST) with VARIABLE_LIST.
  */
-static void replace_singles(node_t *root, vec_node_t_ptr *abandoned)
+static void replace_singles(node_t *root, vec_node_t_ptr abandoned[static 1])
 {
     if (!root) return;
 
@@ -207,7 +207,8 @@ static void replace_singles(node_t *root, vec_node_t_ptr *abandoned)
     }
 }
 
-inline static int extract_by(node_t *root, tree_extract_function_t extract_func, VEC(node_t_ptr) *c, int depth)
+inline static int extract_by(node_t *root, tree_extract_function_t extract_func,
+                             VEC(node_t_ptr) c[static 1], int depth)
 {
     if (extract_func(root, depth)) {
         VEC_PUSH(c, node_t_ptr, root);
@@ -220,14 +221,15 @@ inline static int extract_by(node_t *root, tree_extract_function_t extract_func,
     return 0;
 }
 
-int tree_extract_by(node_t *root, tree_extract_function_t do_extract_func, VEC(node_t_ptr) *collected)
+int tree_extract_by(node_t *root, tree_extract_function_t do_extract_func,
+                    VEC(node_t_ptr) collected[static 1])
 {
     return extract_by(root, do_extract_func, collected, 0);
 }
 
 
 /* NOTE: Changed order of parameters */
-void tree_simplify(node_t *root)
+void tree_simplify(node_t root[static 1])
 {
     /* Store the nodes no longer needed in a vector for later use. */
     vec_node_t_ptr abandoned;

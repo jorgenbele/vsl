@@ -11,7 +11,7 @@
  /* Externally used global. */
 node_t *ast_g_root;
 
-int main(int argc, char *argv[])
+int main(int argc, char *argv[static argc+1])
 {
     yyparse();
 

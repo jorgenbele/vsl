@@ -114,7 +114,7 @@ node_t *node_new_lc(enum node_type type, void *data, int line, int col, uint64_t
 #undef VA_LIST_NODE_INIT
 
 /* Does not set the type. */
-void node_dup_data(node_t *dest, const node_t *src)
+void node_dup_data(node_t dest[static 1], const node_t src[static 1])
 {
     if (!NODE_MALLOC_DATA(src)) {
         dest->data_max = src->data_max;
@@ -139,7 +139,7 @@ void node_dup_data(node_t *dest, const node_t *src)
 
 /* Remove a node and its contents */
 /* node_finalize():  */
-void node_finalize(node_t *n)
+void node_finalize(node_t n[static 1])
 {
     free(n->children);
     if (n->comment) node_finalize(n->comment);

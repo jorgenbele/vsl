@@ -5,6 +5,7 @@ YFLAGS+=--defines=y.tab.h -o y.tab.c -r all
 CFLAGS+=-std=c11 -g -D_POSIX_C_SOURCE=200809L -Wall -Wextra -Wpedantic -O3
 LDLIBS+=-lc
 CC=clang
+#CC=gcc
 
 .PHONEY: main vsl_simplify vsl2py vsl_recreate clean purge rebuild
 

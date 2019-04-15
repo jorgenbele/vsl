@@ -11,33 +11,41 @@
 
 #include "node_src.h"
 
-static void inline_src(node_t *node);
-static void gen_strtable(ir_ctx_t *ctx);
-static void gen_main(symbol_t *main_func);
-static void funcall(ir_ctx_t *ctx, symbol_t *func,
-                    node_t *func_ident, node_t *arglist, size_t *stack_top);
+static void inline_src(node_t node[static 1]);
+static void gen_strtable(ir_ctx_t ctx[static 1]);
+static void gen_main(symbol_t main_func[static 1]);
+static void funcall(ir_ctx_t ctx[static 1], symbol_t func[static 1],
+                    node_t func_ident[static 1], node_t arglist[static 1],
+                    size_t stack_top[static 1]);
 
-static void expression(ir_ctx_t *ctx, symbol_t *func, node_t *expr, size_t *stack_top);
-static void assignment(ir_ctx_t *ctx, symbol_t *func, node_t *left, node_t *right, size_t *stack_top);
-static void print_statement(ir_ctx_t *ctx, symbol_t *func, node_t *r, size_t *stack_top);
+static void expression(ir_ctx_t ctx[static 1], symbol_t func[static 1],
+                       node_t expr[static 1], size_t stack_top[static 1]);
 
-static void emit_cmp(ir_ctx_t *ctx, symbol_t *func, const char *rel_str,
-                     node_t *left, node_t *right,
-                     const label_t *true_label, const label_t *false_label, size_t *stack_top);
+static void assignment(ir_ctx_t ctx[static 1], symbol_t func[static 1],
+                       node_t left[static 1], node_t right[static 1], size_t stack_top[static 1]);
 
-static void if_statement(ir_ctx_t *ctx, symbol_t *func, node_t *relation,
-                         node_t *true_block, node_t *else_block, size_t *stack_top);
+static void print_statement(ir_ctx_t ctx[static 1], symbol_t func[static 1],
+                            node_t r[static 1], size_t stack_top[static 1]);
 
-static void while_statement(ir_ctx_t *ctx, symbol_t *func, node_t *relation,
-                         node_t *while_block, size_t *stack_top);
+static void emit_cmp(ir_ctx_t ctx[static 1], symbol_t func[static 1], const char rel_str[static 1],
+                     node_t left[static 1], node_t right[static 1],
+                     const label_t *true_label, const label_t *false_label,
+                     size_t stack_top[static 1]);
 
-static void rec_traverse(ir_ctx_t *ctx, symbol_t *func, node_t *r, size_t *stack_top);
-static void gen_func(ir_ctx_t *ctx, symbol_t *func);
+static void if_statement(ir_ctx_t ctx[static 1], symbol_t func[static 1], node_t relation[static 1],
+                         node_t true_block[static 1], node_t *else_block,
+                         size_t stack_top[static 1]);
+
+static void while_statement(ir_ctx_t ctx[static 1], symbol_t func[static 1], node_t relation[static 1],
+                         node_t while_block[static 1], size_t stack_top[static 1]);
+
+static void rec_traverse(ir_ctx_t ctx[static 1], symbol_t func[static 1], node_t r[static 1], size_t stack_top[static 1]);
+static void gen_func(ir_ctx_t ctx[static 1], symbol_t func[static 1]);
 
 
 /* inline_src: Generate comments of source code in the
  *             output assembly code. */
-static void inline_src(node_t *node)
+static void inline_src(node_t node[static 1])
 {
     src_newline = SRC_NEVER_NEWLINE;
     src_line_prefix = "\t";
@@ -48,7 +56,7 @@ static void inline_src(node_t *node)
     printf("\n");
 }
 
-static void gen_strtable(ir_ctx_t *ctx)
+static void gen_strtable(ir_ctx_t ctx[static 1])
 {
     puts(".section .rodata");
     /* Printf format specifiers. */
@@ -62,7 +70,7 @@ static void gen_strtable(ir_ctx_t *ctx)
     assert(!VEC_ERROR(&ctx->strings));
 }
 
-static void gen_main(symbol_t *main_func)
+static void gen_main(symbol_t main_func[static 1])
 {
     puts(".globl main");
     puts("main:");
@@ -116,10 +124,10 @@ static void gen_main(symbol_t *main_func)
  *     Emit a function call procedure passing the first six parameters by
  *     registers and the rest by the stack.
  */
-static void funcall(ir_ctx_t *ctx, symbol_t *func,
-                    node_t *func_ident, node_t *arglist, size_t *stack_top)
+static void funcall(ir_ctx_t ctx[static 1], symbol_t func[static 1],
+                    node_t func_ident[static 1], node_t arglist[static 1], size_t stack_top[static 1])
 {
-    size_t stack_off = 0;
+    size_t stack_offset = 0;
 
     size_t i = 0;
     /* Set parameters passed by registers. */
@@ -139,7 +147,7 @@ static void funcall(ir_ctx_t *ctx, symbol_t *func,
     /* Make sure that the stack is 16 bytes aligned. */
     if ((stack_params*8) % 16 != 0) {
         e_imm_reg_nnl("subq", 8, REG_RSP); e_comment("stack alignment to 16 bytes");
-        stack_off += 8;
+        stack_offset += 8;
     }
 
     /* Push the rest of the parameters by stack. */
@@ -156,14 +164,14 @@ static void funcall(ir_ctx_t *ctx, symbol_t *func,
             e0_mem_nnl(ctx, func, "pushq", child, type, stack_top, 0);
             e_param_comment(child, type, NULL, 0);
         }
-        stack_off += 8;
+        stack_offset += 8;
     }
 
     printf("\tcall _%s\n", func_ident->data_char_ptr);
 
     /* Reset stack to before call */
-    if (stack_off) {
-        e_imm_reg_nnl("addq", stack_off, REG_RSP);
+    if (stack_offset) {
+        e_imm_reg_nnl("addq", stack_offset, REG_RSP);
         e_comment("resetting stack alignment");
     }
 }
@@ -172,7 +180,8 @@ static void funcall(ir_ctx_t *ctx, symbol_t *func,
  *  Creates the assembly representing an expression.
  *  Saves the result in %rax.
  */
-static void expression(ir_ctx_t *ctx, symbol_t *func, node_t *expr, size_t *stack_top)
+static void expression(ir_ctx_t ctx[static 1], symbol_t func[static 1],
+                       node_t expr[static 1], size_t stack_top[static 1])
 {
     //inline_src(expr);
     if (!strcmp(expr->data_char_ptr, "func_call")) {
@@ -257,7 +266,8 @@ static void expression(ir_ctx_t *ctx, symbol_t *func, node_t *expr, size_t *stac
     return;
 }
 
-static void assignment(ir_ctx_t *ctx, symbol_t *func, node_t *left, node_t *right, size_t *stack_top)
+static void assignment(ir_ctx_t ctx[static 1], symbol_t func[static 1],
+                       node_t left[static 1], node_t right[static 1], size_t stack_top[static 1])
 {
     (void) ctx;
     assert(left->type == IDENTIFIER_DATA);
@@ -287,7 +297,8 @@ static void assignment(ir_ctx_t *ctx, symbol_t *func, node_t *left, node_t *righ
  *      Horribly inefficient, but I guess this is how its supposed
  *      to be done in this assignment.
  */
-static void print_statement(ir_ctx_t *ctx, symbol_t *func, node_t *r, size_t *stack_top)
+static void print_statement(ir_ctx_t ctx[static 1], symbol_t func[static 1],
+                            node_t r[static 1], size_t stack_top[static 1])
 {
     for (size_t i = 0; i < r->n_children; i++) {
         switch (r->children[i]->type) {
@@ -325,9 +336,10 @@ static void print_statement(ir_ctx_t *ctx, symbol_t *func, node_t *r, size_t *st
     e0("call putchar");
 }
 
-static void emit_cmp(ir_ctx_t *ctx, symbol_t *func, const char *rel_str,
-                     node_t *left, node_t *right,
-                     const label_t *true_label, const label_t *false_label, size_t *stack_top)
+static void emit_cmp(ir_ctx_t ctx[static 1], symbol_t func[static 1], const char rel_str[static 1],
+                     node_t left[static 1], node_t right[static 1],
+                     const label_t *true_label, const label_t *false_label,
+                     size_t stack_top[static 1])
 {
     oper_t t_left = instr_type(left);
     oper_t t_right = instr_type(right);
@@ -373,8 +385,9 @@ static void emit_cmp(ir_ctx_t *ctx, symbol_t *func, const char *rel_str,
     }
 }
 
-static void if_statement(ir_ctx_t *ctx, symbol_t *func, node_t *relation,
-                         node_t *true_block, node_t *else_block, size_t *stack_top)
+static void if_statement(ir_ctx_t ctx[static 1], symbol_t func[static 1], node_t relation[static 1],
+                         node_t true_block[static 1], node_t *else_block,
+                         size_t stack_top[static 1])
 {
     if (!else_block) {
         const label_t false_label = ctx->label_count++;
@@ -399,8 +412,8 @@ static void if_statement(ir_ctx_t *ctx, symbol_t *func, node_t *relation,
     }
 }
 
-static void while_statement(ir_ctx_t *ctx, symbol_t *func, node_t *relation,
-                         node_t *while_block, size_t *stack_top)
+static void while_statement(ir_ctx_t ctx[static 1], symbol_t func[static 1], node_t relation[static 1],
+                         node_t while_block[static 1], size_t stack_top[static 1])
 {
     const label_t true_label = ctx->label_count++;
     const label_t false_label = ctx->label_count++;
@@ -417,7 +430,8 @@ static void while_statement(ir_ctx_t *ctx, symbol_t *func, node_t *relation,
     VEC_POP(&ctx->labels, label_t);
 }
 
-static void rec_traverse(ir_ctx_t *ctx, symbol_t *func, node_t *r, size_t *stack_top)
+static void rec_traverse(ir_ctx_t ctx[static 1], symbol_t func[static 1],
+                         node_t r[static 1], size_t stack_top[static 1])
 {
     assert(*stack_top == 0);
     switch (r->type) {
@@ -485,7 +499,7 @@ static void rec_traverse(ir_ctx_t *ctx, symbol_t *func, node_t *r, size_t *stack
 
 
 /* gen_func(): Emits a function. Assumes that this is in the .text section. */
-static void gen_func(ir_ctx_t *ctx, symbol_t *func)
+static void gen_func(ir_ctx_t ctx[static 1], symbol_t func[static 1])
 {
     if (ctx->export_functions){
         printf(".global _%s\n", func->name);
@@ -577,7 +591,7 @@ static void gen_func(ir_ctx_t *ctx, symbol_t *func)
 /* gen_header(): Generate a c header file with function prototypes
  *               for the functions in the vsl file. Used when
  *               calling vsl from C. */
-static void gen_header(ir_ctx_t *ctx)
+static void gen_header(ir_ctx_t ctx[static 1])
 {
     puts("/* Autogenerated header. */");
     puts("#include <inttypes.h>");
@@ -594,7 +608,7 @@ static void gen_header(ir_ctx_t *ctx)
     );
 }
 
-void gen_program(ir_ctx_t *ctx)
+void gen_program(ir_ctx_t ctx[static 1])
 {
     if (ctx->generate_header) {
         debug("generating header\n");
@@ -606,7 +620,7 @@ void gen_program(ir_ctx_t *ctx)
     gen_strtable(ctx);
 
     puts(".section .data");
-    symbol_t *main = NULL;
+    symbol_t *main_func = NULL;
     uint64_t min_main_seq = ~0;
     FOR_EACH_IN_TLHASH(&ctx->names, global,
         /* Reserve 8 bytes (quad) for global variables. */
@@ -616,7 +630,7 @@ void gen_program(ir_ctx_t *ctx)
         /* Save a pointer to the main function, that is,
         * the first function. */
         else if (global->type == SYM_FUNCTION && global->seq < min_main_seq) {
-            main = global;
+            main_func = global;
             min_main_seq = global->seq;
         }
     );
@@ -624,8 +638,8 @@ void gen_program(ir_ctx_t *ctx)
     /* Generate main. */
     if (ctx->generate_main) {
         puts(".section .text");
-        assert(main);
-        gen_main(main);
+        assert(main_func);
+        gen_main(main_func);
     }
 
     /* Generate functions. */

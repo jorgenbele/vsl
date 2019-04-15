@@ -45,9 +45,9 @@ DEF_VEC_HEADER(node_t_ptr, node_t_ptr);
 void node_init(node_t *n, enum node_type type, void *data, uint64_t n_childs, ...);
 node_t *node_new(enum node_type type, void *data, uint64_t n_childs, ...);
 node_t *node_new_lc(enum node_type type, void *data, int line, int col, uint64_t n_children, ...);
-void node_dup_data(node_t *dest, const node_t *src);
+void node_dup_data(node_t dest[static 1], const node_t src[static 1]);
 void node_print(const node_t *root, int nesting);
-void node_finalize(node_t *discard);
+void node_finalize(node_t discard[static 1]);
 
 /*
  * NOTE: The following functions are found in tree.h

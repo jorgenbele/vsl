@@ -3,6 +3,7 @@
 
 #include <stdio.h>
 #include <inttypes.h>
+#include <stdarg.h>
 
 #include "node.h"
 #include "nodetypes.h"
